@@ -20,11 +20,17 @@ def main():
             response = client.post('/api/datasets', files={'file': ('prepared.csv', raw, 'text/csv')})
             response.raise_for_status()
             uploaded = response.json()
-            response = client.post('/api/runs', json={
+            request = {
                 'dataset_id': uploaded['dataset_id'], 'target': source['target'],
                 'question': 'Which measured features help distinguish recorded diagnoses within this historical cohort?',
                 'task': 'classification', 'independent_rows': True, 'allow_literature': False,
-            })
+            }
+            response = client.post('/api/plans', json=request)
+            response.raise_for_status()
+            plan = response.json()
+            if plan['status'] != 'ready':
+                raise RuntimeError('Public example plan unexpectedly blocked.')
+            response = client.post('/api/runs', json={**request, 'plan_fingerprint': plan['fingerprint']})
             response.raise_for_status()
             run_id = response.json()['id']
             deadline = time.monotonic() + 170

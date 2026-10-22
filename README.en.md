@@ -37,10 +37,10 @@ Optional configuration: copy `.env.example` to `.env`. The launcher loads it thr
 
 ## Run the demo
 
-1. Choose **Use synthetic demo**; target `outcome` is selected.
-2. Confirm independent observations (true for this synthetic fixture).
+1. Choose **心脏病公开案例 · 303 行** (verified UCI) or **使用合成数据演示** (synthetic); the target is selected automatically.
+2. Review source and variable definitions, then confirm independent observations.
 3. Optionally enable PubMed and review the public search text. Only that query is sent externally.
-4. Run the investigation. Follow stages, inspect factors/exclusions, open the report and export evidence.
+4. Click **预览分析方案** (preview), then **确认方案并开始分析** (confirm and run). Unsupported purposes/designs are blocked. Expand claim cards, inspect snippets, refresh to restore the report, and export evidence.
 
 The 320-row synthetic fixture deliberately includes `target_copy` and `participant_id` to demonstrate exclusion. It is CC0 and regenerated with `uv run python scripts/generate_demo.py`. Its coefficients and labels are invented for engineering tests; no clinical finding follows from them. A real executed example is in [docs/demo-report.md](docs/demo-report.md).
 
@@ -63,7 +63,7 @@ npm --prefix frontend run build
 cd frontend && npx playwright test
 ```
 
-Observed on Oct 22 after the public-data update: 18 backend tests passed; Next.js production build/typecheck passed; one browser end-to-end workflow passed, including desktop/mobile layout, actual analysis and report download. Separate live network smoke retrieved 5 PubMed abstracts and completed a report. Offline tests use clearly scoped HTTP fixtures for failure/record parsing; the live smoke is independent. See [test evidence](docs/test-results.md).
+Observed on Oct 22 after the public-data update: 46 backend tests passed; Next.js production build/typecheck passed; three local browser workflows passed (two offline CI cases plus one explicitly enabled live UCI case), including desktop/mobile layout, actual analysis and report download. Separate live network smoke retrieved 5 PubMed abstracts and completed a report. Offline tests use clearly scoped HTTP fixtures for failure/record parsing; the live smoke is independent. See [test evidence](docs/test-results.md).
 
 ## Limits and data handling
 
@@ -73,7 +73,7 @@ Observed on Oct 22 after the public-data update: 18 backend tests passed; Next.j
 - Holdout rankings are exploratory; correlated features and small samples can distort importance. Shuffle SD is not a CI. Feature screening occurs on outer training data; training CV is conditional on that screen, while holdout remains separate.
 - Source existence is checked via retrieval; semantic relevance, support and contradiction are not automatically established. Full text is not fetched. Network failure is explicit and never replaced with fake citations.
 - Question, schema, raw uploads and run outputs stay under ignored `data/`; only an opt-in literature query leaves the machine. No arbitrary LLM-generated code executes. Model credentials are removed from worker environment.
-- One worker at a time, up to four active/queued jobs, 150-second subprocess deadline. Server restart marks unfinished jobs failed; no automatic resume. Refreshing UI does not restore the last run, but its API ID and artifacts persist.
+- One worker at a time, up to four active/queued jobs, 150-second subprocess deadline. Server restart marks unfinished jobs failed; no automatic resume. Refreshing the UI restores the remembered run; local history lists the latest 20 runs. Unfinished computation is not resumed after a server restart.
 - No previous product code copied. Standard libraries are reused with locked versions in `uv.lock` / `package-lock.json`. This repository is separate from the parent personal workspace, which must never be published with it.
 
 Cleanup after stopping servers: delete only this project's `data/` to remove uploads and results. Delete its `.venv/` and `frontend/node_modules/` to remove dependencies; restore them using the commands above. No global packages or models were installed.
@@ -85,3 +85,7 @@ The repository is now public. A write-access invitation has been sent to `znh301
 ## Public data
 
 Run `uv run --frozen python scripts/fetch_public_data.py all` to prepare verified CC BY 4.0 UCI Cleveland (303 rows) and WDBC (569 rows) datasets under ignored `data/public/`. With the application running, `uv run --frozen python -m scripts.smoke_public_data` validates both through the API and report export. Raw data is not committed. See [source audit](docs/data-source-audit.md) and [actual validation](docs/public-data-validation.md). UK Biobank new applications are currently paused; NHANES requires survey-aware methods. Neither is silently substituted into the current independent-row pipeline.
+
+## Chinese product acceptance increment
+
+The main UI now offers verified public examples, typed plan preview with unsupported-scope gates, input fingerprints, expandable computation/abstract evidence cards and history recovery. Literal snippet matches stay unassessed; no semantic support/contradiction or LLM autonomy is claimed. See [product acceptance](docs/product-acceptance.md) for observed tests and the live PubMed run. Main UI/plan/claims are Chinese; the report retains English methodology plus Chinese plan/evidence sections.

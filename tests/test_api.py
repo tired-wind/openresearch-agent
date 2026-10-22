@@ -26,6 +26,11 @@ def test_end_to_end_real_worker(client):
     assert report.status_code==200 and 'not causal evidence' in report.text
     assert (storage.ROOT/'runs'/rid/'analysis.json').exists()
     assert client.get('/api/runs/'+rid+'/evidence').json()['provenance']['kind']=='synthetic_demo_not_clinical'
+    assert state['result']['claims']
+    assert state['result']['review']['claim_verification']['claims_checked']==len(state['result']['analysis']['factors'])
+    assert (storage.ROOT/'runs'/rid/'claims.json').exists()
+    assert client.get('/api/history').json()[0]['id']==rid
+    assert '可追溯结论' in report.text
 
 def test_bad_requests_and_origin(client):
     assert client.post('/api/demo',headers={'Origin':'https://evil.example'}).status_code==403
@@ -36,3 +41,22 @@ def test_bad_requests_and_origin(client):
     assert client.post('/api/runs',json=base).status_code==422
     assert client.post('/api/runs',json={**base,'independent_rows':True,'target':'nope'}).status_code==422
     assert client.post('/api/runs',json={**base,'independent_rows':True,'allow_literature':True}).status_code==422
+
+def test_preview_blocks_unsafe_scope_and_stale_confirmation(client):
+    dataset=client.post('/api/demo').json()
+    body={'dataset_id':dataset['dataset_id'],'target':'outcome','question':'Analyze the recorded outcome.', 'independent_rows':True}
+    plan=client.post('/api/plans',json=body).json()
+    assert plan['status']=='ready'
+    changed={**body,'question':'Analyze a different recorded outcome.','plan_fingerprint':plan['fingerprint']}
+    assert client.post('/api/runs',json=changed).status_code==409
+    causal={**body,'intent':'causal_effect'}
+    assert client.post('/api/plans',json=causal).json()['status']=='blocked'
+    assert client.post('/api/runs',json=causal).status_code==422
+    assert client.get('/api/history').json()==[]
+
+def test_failed_public_download_never_returns_demo_data(client,monkeypatch):
+    import backend.app as module
+    def fail(*args): raise RuntimeError('network unavailable')
+    monkeypatch.setattr(module,'fetch_public_data',fail)
+    r=client.post('/api/examples/heart')
+    assert r.status_code==503 and '未使用替代数据' in r.json()['detail']

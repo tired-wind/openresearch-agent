@@ -14,7 +14,7 @@ def critique(analysis, literature):
     return {'status':'passed_with_limitations','checks':['Finite computed metrics','Disjoint train/test rows','Citation identifier consistency'], 'findings':findings,
         'scope':'Deterministic artifact checks. Not an independent scientific peer review or full-text citation verification.'}
 
-def render(question, summary, analysis, literature, review, provenance):
+def render(question, summary, analysis, literature, review, provenance, claims=None, plan=None):
     lines=['# OpenResearch Agent — Research report','', '## Research question',question,'',
         '## Dataset and provenance',f"Source: {provenance['kind']}. SHA-256: {provenance['sha256']}.",
         f"Observed {summary['rows']} rows and {summary['columns']} columns. Analyzed {analysis['n_analyzed']} rows; train {analysis['n_train']}, test {analysis['n_test']}.",
@@ -36,4 +36,21 @@ def render(question, summary, analysis, literature, review, provenance):
     lines += ['', '## Reproducibility',f"Run ID: {provenance['run_id']}. Dataset digest above. Dependency versions: {provenance['versions']}.",
         'Persisted artifacts: plan.json, overview.json, analysis.json (including split indices), literature.json, review.json, provenance.json, report.md. No dataset rows were sent to a model.',
         'Execution mode: deterministic research workflow; LLM and sponsor integrations not active. Hypotheses are not validated findings.']
+    if provenance.get('profile'):
+        p=provenance['profile']
+        lines += ['', '## Public dataset attribution', f"{p['attribution']}. {p['source_url']}. License: {p['license']} (https://creativecommons.org/licenses/by/4.0/).",
+                  'Prepared data: original ID removed (WDBC), or binary target replaces num and nominal codes preserved (Cleveland).']
+        lines += [f'- {x}' for x in p['limitations']]
+    if plan:
+        lines += ['', '## 分析方案与适用性']+[f'- {c["status"]}: {c["message"]} {c["action"]}' for c in plan['checks']]
+        lines += [f'- {x}' for x in plan['limitations']]
+    if claims:
+        lines += ['', '## 可追溯结论（claims.json）']
+        for c in claims:
+            lines += ['', f'### {c["id"]}: {c["label"]}', c['statement'],
+                      f'计算依据：{c["artifact"]}#{c["pointer"]}; metric={c["metric"]}; n_test={c["n_test"]}; repeat_sd={c["repeat_std"]:.6f}.',
+                      '文献状态：待内容审查。' if c['anchors'] else '文献状态：证据不足；未找到已检索摘要中的字段词语线索。']
+            for a in c['anchors']:
+                lines += [f'- PMID {a["pmid"]}: {a["url"]}; abstract characters [{a["start"]}:{a["end"]}].',
+                          '  摘要原文片段（仅词语命中，不等于支持）：'+a['quote'].replace('\n',' ')]
     return '\n'.join(lines)+'\n'

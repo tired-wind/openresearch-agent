@@ -12,7 +12,9 @@ from uuid import uuid4, UUID
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import PlainTextResponse, FileResponse, JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
-from pydantic import BaseModel, Field, model_validator
+from backend.catalog import CATALOG, identify
+from backend.planning import ResearchRequest, build_plan
+from scripts.fetch_public_data import fetch as fetch_public_data
 from backend import storage
 from backend.analysis import read_table, overview, MAX_BYTES, InputError
 
@@ -47,20 +49,6 @@ async def local_boundary(request,call_next):
             return JSONResponse({'detail':'Invalid content length.'},status_code=400)
     return await call_next(request)
 
-class RunRequest(BaseModel):
-    dataset_id: UUID
-    target: str = Field(min_length=1,max_length=100)
-    question: str = Field(min_length=10,max_length=1500)
-    task: Literal['auto','classification','regression']='auto'
-    independent_rows: bool=False
-    allow_literature: bool=False
-    literature_query: str = Field(default='',max_length=300)
-    @model_validator(mode='after')
-    def validate_scope(self):
-        if not self.independent_rows: raise ValueError('Confirm rows are independent; grouped/time-series validation is not implemented.')
-        if self.allow_literature and len(self.literature_query.strip()) < 3: raise ValueError('Provide an explicit non-sensitive literature query.')
-        return self
-
 def meta_for(dataset_id):
     p=storage.ROOT/'uploads'/f'{dataset_id}.json'
     if not p.exists(): raise HTTPException(404,'Dataset not found.')
@@ -71,11 +59,13 @@ def register(raw,suffix,kind):
     except InputError as exc: raise HTTPException(422,str(exc))
     did=str(uuid4()); folder=storage.ROOT/'uploads'; folder.mkdir(parents=True,exist_ok=True,mode=0o700)
     (folder/f'{did}{suffix}').write_bytes(raw)
-    (folder/f'{did}.json').write_text(json.dumps({'suffix':suffix,'kind':kind,'created_at':storage.now()}))
+    profile=identify(raw)
+    if profile: kind='verified_public_example'
+    (folder/f'{did}.json').write_text(json.dumps({'suffix':suffix,'kind':kind,'profile':profile,'created_at':storage.now()}))
     info=overview(df)
     # Summary for UI excludes numeric values; avoid NaN in schema endpoint.
     info.pop('numeric_summary',None)
-    return {'dataset_id':did,'kind':kind,'overview':info}
+    return {'dataset_id':did,'kind':kind,'profile':profile,'overview':info}
 
 @app.get('/api/health')
 def health():
@@ -94,6 +84,39 @@ def demo(): return register((PROJECT/'demo/synthetic_health.csv').read_bytes(),'
 @app.get('/api/demo.csv')
 def demo_csv(): return FileResponse(PROJECT/'demo/synthetic_health.csv',media_type='text/csv',filename='synthetic_health.csv')
 
+@app.get('/api/examples')
+def examples():
+    return [{'id':key,**value} for key,value in CATALOG.items()]
+
+@app.post('/api/examples/{name}')
+def public_example(name:Literal['heart','breast']):
+    try:
+        fetch_public_data(name)
+        raw=(PROJECT/'data/public'/f'uci-{name}'/'prepared.csv').read_bytes()
+        if not identify(raw):
+            raise ValueError('Prepared file checksum differs from the reviewed example.')
+    except Exception as exc:
+        raise HTTPException(503,'公开案例暂时不可用或内容校验失败；未使用替代数据。请稍后重试。') from exc
+    return register(raw,'.csv','verified_public_example')
+
+def plan_for(request:ResearchRequest):
+    meta=meta_for(str(request.dataset_id))
+    raw=(storage.ROOT/'uploads'/f'{request.dataset_id}{meta["suffix"]}').read_bytes()
+    try: frame=read_table(raw,meta['suffix'])
+    except InputError as exc: raise HTTPException(422,str(exc))
+    return build_plan(request,frame,raw,identify(raw))
+
+@app.post('/api/plans')
+def preview_plan(request:ResearchRequest):
+    return plan_for(request).model_dump(mode='json')
+
+@app.get('/api/history')
+def history():
+    with storage.connect() as con:
+        states=[json.loads(row[0]) for row in con.execute('SELECT payload FROM runs ORDER BY rowid DESC LIMIT 20')]
+    return [{'id':s['id'],'status':s['status'],'question':s['request']['question'],
+             'created_at':s['created_at'],'target':s['request']['target']} for s in states]
+
 def supervise(run_id):
     try:
         env=os.environ.copy(); env['OPENRESEARCH_DATA_DIR']=str(storage.ROOT)
@@ -108,15 +131,14 @@ def supervise(run_id):
     finally: SLOTS.release()
 
 @app.post('/api/runs',status_code=202)
-def create_run(request:RunRequest):
-    meta=meta_for(str(request.dataset_id))
-    raw=(storage.ROOT/'uploads'/f'{request.dataset_id}{meta["suffix"]}').read_bytes()
-    try:
-        frame=read_table(raw,meta['suffix'])
-        if request.target not in frame: raise InputError('Target column does not exist.')
-    except InputError as exc: raise HTTPException(422,str(exc))
+def create_run(request:ResearchRequest):
+    plan=plan_for(request)
+    if plan.status=='blocked':
+        raise HTTPException(422,{'message':'当前问题或数据不适合此分析方法。','plan':plan.model_dump(mode='json')})
+    if request.plan_fingerprint and request.plan_fingerprint!=plan.fingerprint:
+        raise HTTPException(409,'输入已改变，请重新预览方案后再运行。')
     if not SLOTS.acquire(blocking=False): raise HTTPException(429,'Analysis queue is full (4 runs).')
-    rid=str(uuid4()); state={'id':rid,'status':'queued','stage':'planner','created_at':storage.now(),'events':[], 'request':request.model_dump(mode='json')}
+    rid=str(uuid4()); state={'id':rid,'status':'queued','stage':'planner','created_at':storage.now(),'events':[], 'request':request.model_dump(mode='json'),'plan':plan.model_dump(mode='json')}
     try:
         storage.save(state); POOL.submit(supervise,rid)
     except Exception:
