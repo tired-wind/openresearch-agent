@@ -21,7 +21,7 @@ Time zone: Asia/Singapore. Official deadline Oct 28 07:45; aim to submit Oct 27 
 - Retrieved papers are candidates; automated support/contradiction is deferred until actual evidence review exists.
 - Do not claim multi-LLM-agent autonomy, sponsor compliance or clinical validity from this initial deterministic build.
 
-## Next concrete actions
+## Initial next actions (superseded by the updates below)
 
 Finish local vertical slice; execute automated integration and leakage/input tests; run actual API and frontend; persist a demo report. In parallel with user login, resolve sponsor resource documentation. Update test evidence here after execution.
 
@@ -34,3 +34,15 @@ Observed results: 15 backend tests passed; frontend build passed; 1 browser E2E 
 ## GitHub collaboration update — Oct 22
 
 Created private repository https://github.com/tired-wind/openresearch-agent for source collaboration. Added clone/branch/PR guidance to the README. Excluded local datasets, run artifacts, secrets and dependencies. Collaborator invitations and branch protection are not configured. This does not resolve sponsor or submission requirements.
+
+## Current management and public-data update — Oct 22
+
+Live audit now confirms the repository is public; preserved its current visibility. Sent `znh3012107` a write-access invitation. The user requested sole-maintainer delivery, so no dependency or compulsory review is assigned to the friend.
+
+Enabled main protection: PR required, `verify` status required with strict branch freshness, conversations resolved, no force push/delete, administrators included, zero required external approvals. Configured squash merging and automatic merged-branch deletion. Added CI, PR/Issue templates and Chinese CONTRIBUTING guide. Actual CI execution is recorded in the setup PR; local checks passed (18 pytest, frontend build, 1 browser workflow).
+
+Created six scoped Issues and a milestone due Oct 27 10:00 UTC (18:00 Singapore). Credentials/access remain the external blocker in #1. Ready tasks represent work that can begin with local contracts; full semantic/provider completion still depends on #1. This is a maintained backlog, not an unattended scheduling service.
+
+Downloaded licensed UCI Cleveland and WDBC, added checksum-pinned preparation and API smoke scripts, and verified both through report export. See data-source-audit.md and public-data-validation.md. UK Biobank new applications are paused; NHANES needs survey-aware methods. No restricted data or paid service was acquired.
+
+Next concrete implementation: #2 typed research plan and dataset semantics, followed by #3 claim-to-evidence records and bounded verification. Prioritize the real evidence chain and mandatory sponsor connectivity over additional agent roles or larger datasets. User intervention is limited to unavailable authenticated resources, real Cursor participation and final submission.

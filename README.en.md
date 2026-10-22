@@ -1,6 +1,6 @@
 # OpenResearch Agent
 
-[中文 README](README.md) · [Private GitHub repository](https://github.com/tired-wind/openresearch-agent)
+[中文 README](README.md) · [GitHub repository](https://github.com/tired-wind/openresearch-agent)
 
 **An Evidence-Grounded Multi-Agent Research System — local MVP foundation**
 
@@ -63,7 +63,7 @@ npm --prefix frontend run build
 cd frontend && npx playwright test
 ```
 
-Observed: 15 backend tests passed; Next.js production build/typecheck passed; one browser end-to-end workflow passed, including desktop/mobile layout, actual analysis and report download. Separate live network smoke retrieved 5 PubMed abstracts and completed a report. Offline tests use clearly scoped HTTP fixtures for failure/record parsing; the live smoke is independent. See [test evidence](docs/test-results.md).
+Observed on Oct 22 after the public-data update: 18 backend tests passed; Next.js production build/typecheck passed; one browser end-to-end workflow passed, including desktop/mobile layout, actual analysis and report download. Separate live network smoke retrieved 5 PubMed abstracts and completed a report. Offline tests use clearly scoped HTTP fixtures for failure/record parsing; the live smoke is independent. See [test evidence](docs/test-results.md).
 
 ## Limits and data handling
 
@@ -80,4 +80,8 @@ Cleanup after stopping servers: delete only this project's `data/` to remove upl
 
 ## Collaboration
 
-The repository is private. The owner can invite collaborators through GitHub Settings → Collaborators. No invitations have been sent automatically. Use separate feature branches and pull requests; branch protection is not configured. Never commit `.env`, private datasets or `data/` outputs. A project-level open-source license has not yet been selected.
+The repository is now public. A write-access invitation has been sent to `znh3012107`; acceptance is pending. The maintainer owns delivery, without depending on a second reviewer. Main requires PRs, the `verify` CI check, an up-to-date branch and resolved conversations; force pushes/deletion are disabled and administrators are included. Required approvals are zero. See [CONTRIBUTING](CONTRIBUTING.md) and the [issue backlog](https://github.com/tired-wind/openresearch-agent/issues). No project-level open-source license has been selected.
+
+## Public data
+
+Run `uv run --frozen python scripts/fetch_public_data.py all` to prepare verified CC BY 4.0 UCI Cleveland (303 rows) and WDBC (569 rows) datasets under ignored `data/public/`. With the application running, `uv run --frozen python -m scripts.smoke_public_data` validates both through the API and report export. Raw data is not committed. See [source audit](docs/data-source-audit.md) and [actual validation](docs/public-data-validation.md). UK Biobank new applications are currently paused; NHANES requires survey-aware methods. Neither is silently substituted into the current independent-row pipeline.
