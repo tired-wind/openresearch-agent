@@ -1,26 +1,50 @@
 import {test,expect} from '@playwright/test';
-test('synthetic dataset to real persisted report',async({page})=>{
+
+test('中文工作流：预览、实际计算、证据卡、刷新恢复及报告下载',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/');
- await expect(page.getByRole('heading',{name:'A question. A dataset. An auditable answer.'})).toBeVisible();
- await page.getByRole('button',{name:'Use synthetic demo'}).click();
- await expect(page.getByText('Synthetic demo · not clinical data',{exact:false})).toBeVisible();
- await page.getByLabel('I confirm rows represent independent observations', {exact:false}).check();
+ await expect(page.getByRole('heading',{name:'让每一个研究结论，都有据可查。'})).toBeVisible();
+ await page.getByRole('button',{name:'使用合成数据演示'}).click();
+ await expect(page.getByText('合成演示数据 · 不是真实临床数据',{exact:true})).toBeVisible();
+ await page.getByLabel('我已确认每行代表独立观测', {exact:false}).check();
+ await expect(page.getByRole('button',{name:'确认方案并开始分析',exact:false})).toBeDisabled();
+ await page.getByRole('button',{name:'预览分析方案'}).click();
+ await expect(page.getByText('可运行 · 请确认范围',{exact:true})).toBeVisible();
  await page.screenshot({path:'../data/screenshots/workspace.png',fullPage:true});
- await page.getByRole('button',{name:'Run investigation'}).click();
- await expect(page.getByRole('button',{name:'Explore the evidence'})).toBeVisible({timeout:60000});
- await page.getByRole('button',{name:'Explore the evidence'}).click();
- await expect(page.getByRole('heading',{name:'Predictive factors'})).toBeVisible();
+ await page.getByRole('button',{name:'确认方案并开始分析',exact:false}).click();
+ await expect(page.getByRole('button',{name:'查看结论与依据',exact:false})).toBeVisible({timeout:60000});
+ await page.getByRole('button',{name:'查看结论与依据',exact:false}).click();
+ await expect(page.getByRole('heading',{name:'结论与依据',exact:true})).toBeVisible();
  await expect(page.getByText('target_copy',{exact:true})).toBeVisible();
- await expect(page.getByText('Supporting: not established',{exact:true})).toBeVisible();
+ await expect(page.getByText('文献证据不足',{exact:true}).first()).toBeVisible();
+ await page.locator('.claim-card summary').first().click();
+ await expect(page.getByText('analysis.json#/factors/0',{exact:true})).toBeVisible();
  await page.screenshot({path:'../data/screenshots/results.png',fullPage:true});
- await page.getByRole('button',{name:'Research report'}).click();
- await expect(page.locator('pre.report')).toContainText('Dataset digest above');
- const download=page.waitForEvent('download');await page.getByRole('link',{name:'Markdown'}).click();
+ await page.reload();
+ await expect(page.getByRole('heading',{name:'结论与依据',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'研究报告',exact:false}).click();
+ await expect(page.locator('pre.report')).toContainText('可追溯结论');
+ const download=page.waitForEvent('download');await page.getByRole('link',{name:'下载 Markdown',exact:false}).click();
  expect((await download).suggestedFilename()).toMatch(/^openresearch-.*\.md$/);
  expect(errors).toEqual([]);
  await page.setViewportSize({width:390,height:844});
- await page.getByRole('button',{name:'Workspace',exact:false}).click();
+ await page.getByRole('button',{name:'工作台',exact:false}).click();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
  await page.screenshot({path:'../data/screenshots/mobile.png',fullPage:true});
+});
+
+test('不适用目的被拦截；修改输入后必须重新预览',async({page})=>{
+ await page.goto('/');await page.getByRole('button',{name:'使用合成数据演示'}).click();
+ await page.getByLabel('我已确认每行代表独立观测',{exact:false}).check();
+ await page.getByRole('combobox',{name:'研究目的',exact:true}).selectOption('causal_effect');
+ await page.getByRole('button',{name:'预览分析方案'}).click();
+ await expect(page.getByText('暂不能运行',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'确认方案并开始分析',exact:false})).toBeDisabled();
+ await page.getByRole('combobox',{name:'研究目的',exact:true}).selectOption('prediction');
+ await expect(page.getByText('输入已修改，请重新预览方案。')).toBeVisible();
+ await expect(page.getByRole('button',{name:'确认方案并开始分析',exact:false})).toBeDisabled();
+ await page.getByRole('button',{name:'预览分析方案'}).click();
+ await expect(page.getByRole('button',{name:'确认方案并开始分析',exact:false})).toBeEnabled();
+ await page.getByLabel('上传数据集').setInputFiles({name:'bad.csv',mimeType:'text/csv',buffer:Buffer.from('a,a\n1,2')});
+ await expect(page.getByRole('alert')).toBeVisible();
 });

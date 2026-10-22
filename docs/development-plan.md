@@ -46,3 +46,11 @@ Created six scoped Issues and a milestone due Oct 27 10:00 UTC (18:00 Singapore)
 Downloaded licensed UCI Cleveland and WDBC, added checksum-pinned preparation and API smoke scripts, and verified both through report export. See data-source-audit.md and public-data-validation.md. UK Biobank new applications are paused; NHANES needs survey-aware methods. No restricted data or paid service was acquired.
 
 Next concrete implementation: #2 typed research plan and dataset semantics, followed by #3 claim-to-evidence records and bounded verification. Prioritize the real evidence chain and mandatory sponsor connectivity over additional agent roles or larger datasets. User intervention is limited to unavailable authenticated resources, real Cursor participation and final submission.
+
+## Reviewable Chinese product increment — Oct 22
+
+Implemented typed rule-based plan preview, unsupported-design/purpose gates, data/request fingerprints, checksum-identified examples and curated field labels. Added computed claim records with literal abstract anchors and tamper rejection, a Chinese interface, run history and refresh recovery. Updated exports and product acceptance instructions. These deliver concrete portions of #2, #3, #4 and #5; they do not complete provider-driven reasoning or scientific support assessment.
+
+Verified: 46 backend tests, production frontend build, 3 local browser tests (including live UCI), and a live PubMed/API run with 4 retrieved publications and 15 verified snippet locations. See product-acceptance.md. Conventional CI intentionally excludes live UCI/PubMed reliance; its 2 browser checks are distinct from the live tests.
+
+Next: verify sponsor/runtime contracts (#1), then implement constrained semantic proposals and population/exposure/outcome comparison. Preserve the current working examples and explicit uncertainty while doing so. Do not close the full planning/evidence issues merely because the deterministic substrate is ready.

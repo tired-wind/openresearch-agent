@@ -4,13 +4,16 @@
 flowchart LR
     U[Researcher: dataset + target + question] --> N[Next.js workspace]
     N --> F[FastAPI validation]
-    F --> Q[Bounded local queue: 4 jobs]
+    F --> V[Typed scope plan + fingerprint confirmation]
+    V -->|unsupported| B[Block with actionable explanation]
+    V -->|ready| Q[Bounded local queue: 4 jobs]
     Q --> W[Python subprocess: 150 s limit]
     W --> P[Deterministic planner]
     P --> D[Data validation and overview]
     D --> M[Train/test split + preprocessing pipeline + model]
     M --> L[Optional PubMed: approved query only]
-    L --> C[Deterministic artifact critic]
+    L --> E[Computed claim cards + literal abstract anchors]
+    E --> C[Deterministic artifact critic]
     C --> R[Report renderer]
     F --> S[(SQLite run states)]
     W --> S
@@ -39,6 +42,14 @@ Permutation importance shuffles original columns in the holdout eight times. Mea
 - Hypotheses: no clinical/causal hypotheses promoted to findings. Literature support/contradiction remains uncertain.
 
 The report renders these artifacts directly. Critic checks finite metrics, disjoint partitions and source-ID consistency; it does not impersonate semantic peer review. Original uploads and results persist locally under ignored data/. No patient records are bundled.
+
+`POST /api/plans` returns typed checks, steps, limitations and a SHA-256 fingerprint of the normalized request, dataset content and plan version. `POST /api/runs` always recomputes scope checks and rejects a stale supplied fingerprint before queueing; direct API clients may omit the optional confirmation fingerprint but cannot bypass scope validation. The worker checks the dataset hash again. Unsupported explicit purposes/designs and a limited set of question/field patterns are blocked. This is conservative deterministic scoping, not general semantic understanding or proof of independence.
+
+The checksum-identified public-example catalog supplies reviewed targets, source attribution, field labels and curated lexical search terms. An explicit example load calls a fixed UCI downloader; failure is visible and no synthetic fallback is used. User upload filenames do not establish provenance. Downloaded examples live in project `data/public/`; per-run uploads/artifacts use `OPENRESEARCH_DATA_DIR`.
+
+`claims.json` binds each factor to its numeric value, scoring metric, test size and `analysis.json#/factors/N`. Literature anchors have retrieved source IDs, literal abstract character ranges, quotes and abstract digests. A second pass rejects changed values, template wording, pointers, source IDs or quotes. Matching is lexical only; relation is `unassessed`, or `insufficient` if no anchor. Neither state implies scientific support or conflict. The UI exposes both computation and source snippets in one card; exports include the same evidence.
+
+The Chinese UI requires preview before run, invalidates previews when input changes and restores saved runs via a locally remembered UUID. `GET /api/history` returns the latest 20 local run summaries. Polling pauses after five consecutive failures and offers an explicit retry. No private question or data rows are placed in browser storage.
 
 ## Extension boundaries
 

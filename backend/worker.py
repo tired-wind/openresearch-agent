@@ -9,6 +9,8 @@ from backend import storage
 from backend.analysis import read_table, overview, analyze
 from backend.literature import retrieve
 from backend.report import critique, render
+from backend.catalog import identify
+from backend.evidence import build_claims, verify_claims
 
 def execute(run_id):
     state=storage.load(run_id)
@@ -19,16 +21,16 @@ def execute(run_id):
     try:
         state['status']='running'
         req=state['request']
-        stage('planner','running','Construct a bounded plan from explicit target and task settings.')
-        plan={'mode':'deterministic','question':req['question'],'target':req['target'],'task_requested':req['task'],
-              'stages':['planner','data','model','literature','critic','report'],'max_review_rounds':1,
-              'external_query':req['literature_query'] if req['allow_literature'] else None,
-              'limits':'Prediction only; independent rows; no arbitrary code or causal identification.'}
+        stage('planner','running','核对已确认的分析方案、目标与数据指纹。')
+        plan=state['plan']
         storage.artifact(run_id,'plan.json',plan)
-        stage('planner','complete','Plan persisted. Prediction scope; no causal claims.')
-        stage('data','running','Parse bounded file; inspect schema, missingness and duplicates.')
+        stage('planner','complete','方案已保存；仅分析预测表现，不作因果结论。')
+        stage('data','running','解析文件，检查字段、缺失与重复。')
         meta=json.loads((storage.ROOT/'uploads'/f"{req['dataset_id']}.json").read_text())
         raw=(storage.ROOT/'uploads'/f"{req['dataset_id']}{meta['suffix']}").read_bytes()
+        if hashlib.sha256(raw).hexdigest()!=plan['dataset_sha256']:
+            raise ValueError('Dataset changed after planning; create a new plan.')
+        profile=identify(raw)
         df=read_table(raw,meta['suffix'])
         summary=overview(df)
         # pandas numeric summaries can contain missing values; normalize for strict JSON.
@@ -40,27 +42,31 @@ def execute(run_id):
             return value
         summary=finite_json(summary)
         storage.artifact(run_id,'overview.json',summary)
-        stage('data','complete',f"Validated {len(df)} rows and {len(df.columns)} columns.")
-        stage('model','running','Split rows; fit preprocessing within training folds; evaluate and permute holdout features.')
-        result=analyze(df,req['target'],req['task'])
+        stage('data','complete',f"已验证 {len(df)} 行、{len(df.columns)} 个字段。")
+        stage('model','running','划分训练与测试集；训练折内预处理，计算留出集评分与置换重要性。')
+        result=analyze(df,req['target'],plan['task'])
         storage.artifact(run_id,'analysis.json',result)
-        stage('model','complete',f"Computed {len(result['factors'])} ranked factors; excluded {len(result['excluded'])} fields.")
-        stage('literature','running','Query PubMed with the approved search text only.' if req['allow_literature'] else 'External search disabled by user.')
+        stage('model','complete',f"计算了 {len(result['factors'])} 个排序特征，排除 {len(result['excluded'])} 个字段。")
+        stage('literature','running','仅使用已确认的公开检索词查询 PubMed。' if req['allow_literature'] else '用户未启用外部文献检索。')
         lit=retrieve(req['literature_query']) if req['allow_literature'] else {'status':'disabled','query':None,'records':[],'message':'External literature search disabled. No external support established.'}
         storage.artifact(run_id,'literature.json',lit)
-        stage('literature','failed' if lit['status']=='failed' else 'complete',f"{lit['status']}: {len(lit['records'])} retrieved records. Support/contradiction remains uncertain.")
-        stage('critic','running','Check numeric finiteness, split separation and reference identifiers.')
+        stage('literature','failed' if lit['status']=='failed' else 'complete',f"{lit['status']}: 检索到 {len(lit['records'])} 条记录；支持或冲突关系尚未确认。")
+        stage('critic','running','核对指标、切分、引用身份、结论数值与摘要原文位置。')
         review=critique(result,lit)
+        claims=build_claims(result,lit,profile)
+        verification=verify_claims(claims,result,lit)
+        review['claim_verification']=verification
+        storage.artifact(run_id,'claims.json',claims)
         storage.artifact(run_id,'review.json',review)
-        stage('critic','complete','Artifact checks passed with explicit scientific limitations.')
-        stage('report','running','Render report directly from stored computations and source records.')
-        provenance={'run_id':run_id,'kind':meta['kind'],'sha256':hashlib.sha256(raw).hexdigest(),'versions':{p:importlib.metadata.version(p) for p in ['pandas','numpy','scikit-learn']},'python':platform.python_version()}
+        stage('critic','complete','计算与引用位置核验通过；科学支持关系仍需内容审查。')
+        stage('report','running','根据已保存的实际计算和来源生成报告。')
+        provenance={'run_id':run_id,'kind':meta['kind'],'sha256':hashlib.sha256(raw).hexdigest(),'profile':profile,'versions':{p:importlib.metadata.version(p) for p in ['pandas','numpy','scikit-learn']},'python':platform.python_version()}
         storage.artifact(run_id,'provenance.json',provenance)
-        report=render(req['question'],summary,result,lit,review,provenance)
+        report=render(req['question'],summary,result,lit,review,provenance,claims,plan)
         storage.artifact(run_id,'report.md',report)
-        state['result']={'overview':summary,'analysis':result,'literature':lit,'review':review,'provenance':provenance,'report':report,'plan':plan}
+        state['result']={'overview':summary,'analysis':result,'literature':lit,'review':review,'provenance':provenance,'report':report,'plan':plan,'claims':claims}
         state['status']='completed_with_warnings'
-        stage('report','complete','Report persisted. Read limitations before interpreting results.')
+        stage('report','complete','报告已保存；请先阅读方法局限再解释结果。')
     except Exception as exc:
         state['status']='failed'
         state['error']=str(exc) if isinstance(exc,ValueError) else f'{type(exc).__name__}: workflow failed; inspect local artifacts.'
