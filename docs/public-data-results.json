@@ -1,0 +1,38 @@
+[
+  {
+    "dataset": "heart",
+    "source": "https://archive.ics.uci.edu/dataset/45/heart+disease",
+    "prepared_sha256": "3b46ae4de8e2a18070e923c7071c71c0f6987e6879ba26a8d6b4b27bdd484c73",
+    "run_id": "a8d0209d-9986-4ad6-ba8c-6ba45d376ebb",
+    "status": "completed_with_warnings",
+    "n_analyzed": 303,
+    "n_train": 227,
+    "n_test": 76,
+    "metrics": {
+      "balanced_accuracy": 0.8473867595818816,
+      "f1_macro": 0.8421052631578947,
+      "baseline_balanced_accuracy": 0.5,
+      "roc_auc": 0.9365853658536586,
+      "average_precision": 0.9325779618893758
+    },
+    "scope": "API engineering smoke test; no clinical or external validity established."
+  },
+  {
+    "dataset": "breast",
+    "source": "https://archive.ics.uci.edu/dataset/17/breast+cancer+wisconsin+diagnostic",
+    "prepared_sha256": "2b96892b20da5730655b83f6961cafcfb29091c3f09ab50a4206ad6f7761079e",
+    "run_id": "8da92856-be72-41e2-9799-fadf6e5ab638",
+    "status": "completed_with_warnings",
+    "n_analyzed": 569,
+    "n_train": 426,
+    "n_test": 143,
+    "metrics": {
+      "balanced_accuracy": 0.9567085953878407,
+      "f1_macro": 0.9620669531540135,
+      "baseline_balanced_accuracy": 0.5,
+      "roc_auc": 0.9974842767295597,
+      "average_precision": 0.9959447294375581
+    },
+    "scope": "API engineering smoke test; no clinical or external validity established."
+  }
+]

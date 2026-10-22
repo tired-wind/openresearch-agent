@@ -2,7 +2,7 @@
 
 **面向科研分析的证据可追溯 Agent 系统**
 
-[English README](README.en.md) · [GitHub 私有仓库](https://github.com/tired-wind/openresearch-agent)
+[English README](README.en.md) · [GitHub 仓库](https://github.com/tired-wind/openresearch-agent)
 
 > 进度更新：2026 年 10 月 22 日（新加坡时间）。
 >
@@ -32,17 +32,17 @@
 | 报告与导出 | 已实现并测试 | Markdown 报告、JSON 证据包，以及本地中间文件 |
 | Zetaris / Meterless | 接入受阻 | 尚未验证比赛提供的实际接口、凭据和运行环境，未实现真实集成 |
 | NVIDIA Nemotron | 尚未接入 | 已查阅公开资料；没有已验证的可用推理服务 |
-| 参赛交付 | 尚未完成 | 已建立 GitHub 私有协作仓库；实际 Cursor 开发记录、演示视频、幻灯片及最终提交仍待完成 |
+| 参赛交付 | 尚未完成 | 已建立 GitHub 公开协作仓库和任务清单；实际 Cursor 开发记录、演示视频、幻灯片及最终提交仍待完成 |
 
 **当前自然语言问题只作为报告上下文，不会驱动 LLM 自动规划。** 目标变量、任务类型和文献检索词由用户指定；自动任务识别只是基于目标变量类型及取值数量的规则判断。六个执行阶段不代表已经运行六个独立的大模型 Agent。
 
 ## 3. 已验证的运行结果
 
-以下是 2026 年 10 月 22 日开发阶段实际执行的结果。本次 README 中文化核对了测试记录和保存的运行文件，没有重新执行整套测试。
+以下是 2026 年 10 月 22 日本轮实际执行的结果；文献联网结果来自此前保存的真实运行。本轮还验证了两个 UCI 公开数据集，详见[公开数据验证记录](docs/public-data-validation.md)。
 
 | 检查 | 实际结果 |
 |---|---|
-| 后端自动化测试 | **15 项通过**，覆盖分类/回归、泄漏排除、输入异常、真实子进程分析、API 与报告导出等 |
+| 后端自动化测试 | **18 项通过**，覆盖分类/回归、泄漏排除、输入异常、真实子进程分析、API 与报告导出等 |
 | 前端生产构建 | **通过**，包含 Next.js 编译和 TypeScript 检查 |
 | 浏览器端到端测试 | **1 项通过**，覆盖真实分析流程、报告下载、页面异常检查和手机宽度布局 |
 | 真实文献联网检索 | 成功获取 **5 篇 PubMed 论文记录及摘要** |
@@ -108,7 +108,7 @@ SQLite 执行状态 + 本地分析文件
 
 已验证环境为 ARM 架构 macOS、16 GiB 内存、Python 3.12 和 Node.js 24。需要 `uv` 和 `npm`。本地合成数据演示不需要 GPU、Docker、大模型权重或 API 密钥；启用 PubMed 检索时需要网络。
 
-首次在另一台电脑上协作时，先接受仓库邀请并克隆（需要 GitHub 访问权限）：
+首次在另一台电脑上协作时可克隆公开仓库；推送分支需要接受协作邀请：
 
 ```bash
 gh repo clone tired-wind/openresearch-agent
@@ -201,7 +201,7 @@ npx playwright test
 - 尚未完成 Zetaris、Meterless 的真实连接与集成测试。
 - Meterless H-MEM 公开资料包含实现规范及非生产参考实现，参考实现使用模拟哈希嵌入；没有把阅读文档或模拟嵌入计作已完成集成。
 - 尚未接入可用 LLM，也没有证据证明已通过 Cursor 完成实际开发任务。
-- 已建立 GitHub 私有仓库用于协作；朋友需接受邀请后才能访问。演示视频、幻灯片和参赛提交尚未完成。
+- 已建立 GitHub 仓库用于协作；朋友需接受邀请后才能访问。演示视频、幻灯片和参赛提交尚未完成。
 
 下一步按以下顺序推进：
 
@@ -232,21 +232,24 @@ npx playwright test
 
 审计文档使用 `VERIFIED`（已核验）、`UNVERIFIED`（未核验）和 `BLOCKED`（受阻）区分证据状态。代码已经实现、测试已经通过和完整参赛项目已经完成，是三个不同的进度层次。
 
-## 9. 与朋友协作
+## 9. 项目维护与协作
 
-仓库地址：[tired-wind/openresearch-agent](https://github.com/tired-wind/openresearch-agent)。当前为私有仓库，尚未自动邀请协作者。仓库所有者可在 [Collaborators 设置](https://github.com/tired-wind/openresearch-agent/settings/access) 中添加朋友的 GitHub 账号。
+[GitHub 仓库](https://github.com/tired-wind/openresearch-agent)当前公开。已向 `znh3012107` 发送 write 权限邀请，待对方接受：[邀请入口](https://github.com/tired-wind/openresearch-agent/invitations)。
 
-接受邀请后，朋友可以按上面的命令克隆和启动项目。建议每个任务使用独立分支，通过 Pull Request 合并，避免多人直接修改 `main`：
+由维护者统一负责实现、验证、审查和合并；朋友按需参与，不作为交付依赖。已建立 [6 个可验收任务](https://github.com/tired-wind/openresearch-agent/issues)及 [10 月 27 日内部截止里程碑](https://github.com/tired-wind/openresearch-agent/milestone/1)。
+
+`main` 已启用 PR + `verify` 自动检查 + 分支更新 + 对话解决要求；管理员同样适用，禁止强推和删除。必需外部批准数为 0，不会因等待朋友审核阻塞。CI 检查后端测试、前端生产构建和合成数据浏览器流程。详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+`.env`、真实数据和 `data/` 运行产物留在本机。项目级开源许可证尚未选择，公开可见不等于授予开源许可。
+
+## 10. 不需要私人数据也能运行
+
+已核验并提供可复现下载脚本：UCI Cleveland 心脏病数据 303 行、WDBC 乳腺癌诊断数据 569 行，均为真实历史公开数据，非合成数据。方法限制、CC BY 4.0 署名和来源见[数据源审计](docs/data-source-audit.md)。
 
 ```bash
-git switch main
-git pull --ff-only
-git switch -c feat/your-task
-# 修改代码并完成相关测试后，选择需要的文件提交
-git add <需要提交的文件路径>
-git commit -m "Describe your change"
-git push -u origin HEAD
-gh pr create --base main
+uv run --frozen python scripts/fetch_public_data.py all
+# 应用启动后，可用另一终端验证 API 完整流程：
+uv run --frozen python -m scripts.smoke_public_data
 ```
 
-`.env`、真实数据和 `data/` 运行产物各自在本机保存，不通过 GitHub 共享。未设置分支保护，以上是协作约定。仓库目前没有项目级开源许可证；私有协作仓库不代表已经选择开源授权或满足最终仓库可见性要求。
+也可以在页面上传 `data/public/uci-heart/prepared.csv`，选择 `disease_present`；或上传 `data/public/uci-breast/prepared.csv`，选择 `diagnosis`。这些是历史诊断案例，不能表述为未来发病风险或因果发现。公开数据验证默认关闭外部文献检索；真实文献支持与冲突判断仍待实现。
