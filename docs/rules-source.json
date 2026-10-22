@@ -1,0 +1,155 @@
+{
+  "source": "https://hackathon.genai.works/event/open-agent-hackathon-2026",
+  "retrieved": "2026-10-22",
+  "method": "Public HTML Next.js serialized rule sections; no authenticated access",
+  "sha256_html": "be0d2eb1670c6ed488072dc22fb53a4ee072a16ab5e53e7aef9d4a062add2d49",
+  "sections": [
+    {
+      "number": 1,
+      "title": "Eligibility",
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            "Open worldwide to anyone aged 16 or older at the start of the build window.",
+            "Employees of the organizer and of judging sponsors may participate but are not eligible for cash prizes.",
+            "One account per participant. Duplicate accounts disqualify the whole team."
+          ]
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "title": "Teams",
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            "Teams of one to five people. Solo entries compete in the same pool as teams.",
+            "Team composition locks when your first submission is created; before that you may join, leave or merge freely.",
+            "A participant may belong to exactly one team. Mentors may advise any number of teams."
+          ]
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "title": "Tracks",
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            "There are three challenge tracks plus the Wildcard [Tinkerer] bonus track.",
+            "Every submission selects exactly one primary track, which determines the judging panel and the prizes it competes for.",
+            "You may change track any time before the submission deadline from your team workspace.",
+            "Cross-track relevance is welcome but is not scored twice."
+          ]
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "title": "Build window",
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            "Building starts 22 October 2026 at 00:00 UTC and ends 27 October 2026 at 23:45 UTC.",
+            "Work committed before the window opens is not eligible, except for clearly declared pre-existing components.",
+            "Time zones do not extend the window; all deadlines are UTC."
+          ]
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "title": "What you can use",
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            "Every submission must integrate Zetaris and Meterless, and teams must use Cursor for development.",
+            "Integrate NVIDIA technology wherever it contributes to your project, workflow or use case.",
+            "Any language, framework, model or cloud, including closed-source APIs and sponsor credits.",
+            "Pre-existing open-source libraries are fine. Pre-existing product code must be declared in the submission form.",
+            "Generated code is allowed and expected, you own the result and are accountable for it."
+          ]
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "title": "Submission requirements",
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            "A demo video of 1-4 minutes that shows the main workflow, how the agent solves the selected challenge, its key features, and how Zetaris and Meterless are integrated.",
+            "A slide deck covering the problem and target users, the solution, the agent workflow or architecture, the technical stack, how Zetaris and Meterless were used, what was unique about your use of the sponsor technologies, product visuals, and future enhancements.",
+            "A GitHub repository with all source code and a README covering setup, usage and dependencies. If your agents run in Google Colab, include the Colab links.",
+            "A clear explanation of how Zetaris and Meterless were integrated, how Cursor was used during development, where NVIDIA technology contributes, and what was unique about your use of the sponsor technologies."
+          ]
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "title": "Judging",
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            "Scoring out of 100: Impact 30, Technical 20, Innovation 15, Demo 15, Product & UX 10, Sponsor tech 10.",
+            "Each submission is reviewed by at least three judges.",
+            "Ties are resolved on the Impact score, then on submission timestamp."
+          ]
+        }
+      ]
+    },
+    {
+      "number": 8,
+      "title": "Prizes",
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            "Up to $20,000 in total prize value: $13,000 in cash prizes and $7,000 in in-kind rewards for selected winners.",
+            "Cash prizes per track (1st / 2nd / 3rd): Solving Fragmented Intelligence $1,600 / $1,200 / $900; The Agent That Can Explain Why $1,600 / $1,200 / $900; Reasoning Architecture $1,500 / $1,200 / $900; Wildcard [Tinkerer] $1,000 / $600 / $400.",
+            "In-kind rewards: Best use of NVIDIA Nemotron - NVIDIA DGX Spark AI Supercomputer (Founder's Edition), $4,699.",
+            "Cash prizes are paid by bank transfer within 30 days of the results announcement.",
+            "Cash prizes are split equally among team members unless the team submits a different split in writing.",
+            "Taxes and any local charges are the recipient's responsibility."
+          ]
+        }
+      ]
+    },
+    {
+      "number": 9,
+      "title": "Intellectual property",
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            "You keep all rights to what you build. Nothing here transfers ownership to the organizer or sponsors.",
+            "By submitting you grant the organizer a license to show your demo, screenshots and description in event coverage.",
+            "Sponsor-track submissions grant that sponsor the same non-exclusive promotional license."
+          ]
+        }
+      ]
+    },
+    {
+      "number": 10,
+      "title": "Schedule & changes",
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            "The organizer may adjust the schedule for technical reasons; changes are announced on this page and in Discord.",
+            "Disqualification decisions are final and are communicated with a reason to the team lead.",
+            "Questions go to hackathons@genai.works - expect a reply within one working day."
+          ]
+        }
+      ]
+    }
+  ]
+}

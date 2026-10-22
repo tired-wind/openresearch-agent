@@ -1,0 +1,26 @@
+import {test,expect} from '@playwright/test';
+test('synthetic dataset to real persisted report',async({page})=>{
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('/');
+ await expect(page.getByRole('heading',{name:'A question. A dataset. An auditable answer.'})).toBeVisible();
+ await page.getByRole('button',{name:'Use synthetic demo'}).click();
+ await expect(page.getByText('Synthetic demo · not clinical data',{exact:false})).toBeVisible();
+ await page.getByLabel('I confirm rows represent independent observations', {exact:false}).check();
+ await page.screenshot({path:'../data/screenshots/workspace.png',fullPage:true});
+ await page.getByRole('button',{name:'Run investigation'}).click();
+ await expect(page.getByRole('button',{name:'Explore the evidence'})).toBeVisible({timeout:60000});
+ await page.getByRole('button',{name:'Explore the evidence'}).click();
+ await expect(page.getByRole('heading',{name:'Predictive factors'})).toBeVisible();
+ await expect(page.getByText('target_copy',{exact:true})).toBeVisible();
+ await expect(page.getByText('Supporting: not established',{exact:true})).toBeVisible();
+ await page.screenshot({path:'../data/screenshots/results.png',fullPage:true});
+ await page.getByRole('button',{name:'Research report'}).click();
+ await expect(page.locator('pre.report')).toContainText('Dataset digest above');
+ const download=page.waitForEvent('download');await page.getByRole('link',{name:'Markdown'}).click();
+ expect((await download).suggestedFilename()).toMatch(/^openresearch-.*\.md$/);
+ expect(errors).toEqual([]);
+ await page.setViewportSize({width:390,height:844});
+ await page.getByRole('button',{name:'Workspace',exact:false}).click();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+ await page.screenshot({path:'../data/screenshots/mobile.png',fullPage:true});
+});
