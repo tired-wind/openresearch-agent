@@ -63,7 +63,7 @@ npm --prefix frontend run build
 cd frontend && npx playwright test
 ```
 
-Observed: 15 backend tests passed; Next.js production build/typecheck passed; one browser end-to-end workflow passed, including desktop/mobile layout, actual analysis and report download. Separate live network smoke retrieved 5 PubMed abstracts and completed a report. Offline tests use clearly scoped HTTP fixtures for failure/record parsing; the live smoke is independent. See [test evidence](docs/test-results.md).
+Observed on Oct 22 after the public-data update: 18 backend tests passed; Next.js production build/typecheck passed; one browser end-to-end workflow passed, including desktop/mobile layout, actual analysis and report download. Separate live network smoke retrieved 5 PubMed abstracts and completed a report. Offline tests use clearly scoped HTTP fixtures for failure/record parsing; the live smoke is independent. See [test evidence](docs/test-results.md).
 
 ## Limits and data handling
 
