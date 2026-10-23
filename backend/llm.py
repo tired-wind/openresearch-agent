@@ -36,6 +36,13 @@ def chat(messages: list[dict[str, str]], *, model: str | None = None, json_mode:
     if not (base and token):
         return {**base_result, 'status': 'disabled', 'message': 'Meterless Nightshift is not configured; set METERLESS_BASE_URL and METERLESS_RUNTIME_TOKEN.'}
 
+    # Same rule as NightshiftProvider: auto routing drifts between models, so a
+    # self-check that accepted it would report evidence the app itself rejects.
+    if chosen == 'meterless/auto':
+        return {**base_result, 'status': 'failed',
+                'message': 'meterless/auto is refused here too; pin a discovered model ID '
+                           '(for example nvidia/nemotron-3.5-lightning-30b-a3b).'}
+
     payload: dict[str, Any] = {'model': chosen, 'messages': messages}
     if json_mode:
         payload['response_format'] = {'type': 'json_object'}
@@ -59,9 +66,18 @@ def chat(messages: list[dict[str, str]], *, model: str | None = None, json_mode:
         )
         response.raise_for_status()
         body = response.json()
-        served = body.get('model') or chosen
+        served = body.get('model')
+        if not isinstance(served, str) or not served:
+            raise ValueError('Nightshift did not identify the serving model')
         choice = (body.get('choices') or [{}])[0]
         content = (choice.get('message') or {}).get('content') or ''
+        if served != chosen:
+            # Report the model that actually answered, so a caller can decide whether
+            # a still-Nemotron substitution is acceptable evidence or must be rerun.
+            return {**base_result, 'model': served, 'status': 'failed',
+                    'content': content,
+                    'message': f'Nightshift served {served} instead of {chosen}; '
+                               f'pin a discovered model ID or cite the model that served.'}
         if not content.strip():
             raise ValueError('empty completion')
         return {

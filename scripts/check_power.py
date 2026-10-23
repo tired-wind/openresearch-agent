@@ -48,22 +48,41 @@ def main() -> int:
         for m in hosted[:4]:
             print(f"        - {m}")
 
+    # Pin one discovered model. Both this script and the app refuse meterless/auto,
+    # because auto routing has been observed to land on different models per call.
+    pinned = next((m for m in hosted if 'lightning' in m), hosted[0] if hosted else '')
+    if not pinned:
+        print("  [FAIL]  no hosted Nemotron model to pin; cannot produce award evidence")
+        return 1
+
     prompt = "Reply with exactly one word: ready"
     if "--prompt" in sys.argv:
         idx = sys.argv.index("--prompt")
         if idx + 1 < len(sys.argv):
             prompt = sys.argv[idx + 1]
 
-    result = llm.chat([{"role": "user", "content": prompt}], temperature=0)
-    ok = result["status"] == "ok"
-    print(f"  [{'PASS' if ok else 'FAIL'}]  real completion: {result['message']}")
-    if ok:
-        print(f"        served by : {result['model']}")
+    # Nightshift has been observed to substitute a different, still-Nemotron model
+    # (pinning nemotron-3-nano returned 3.5-lightning). The app's runner treats that
+    # as a hard error; this check reports it as a warning, because the NVIDIA award
+    # requires Nemotron to be serving, not one specific Nemotron id.
+    result = llm.chat([{"role": "user", "content": prompt}], model=pinned, temperature=0)
+    served = result.get("model") or ""
+    nemotron_served = "nemotron" in served.lower()
+    ok = result["status"] == "ok" or (nemotron_served and "instead of" in result["message"])
+
+    if result["status"] == "ok":
+        print(f"  [PASS]  real completion: {result['message']}")
+        print(f"        served by : {served}")
         print(f"        answer    : {result['content'][:160]}")
         print(f"        usage     : {result['usage']}")
+    elif nemotron_served:
+        print(f"  [WARN]  real completion: {result['message']}")
+        print(f"        Nightshift substituted another Nemotron; rerun for a clean match,")
+        print(f"        or accept it and cite the model that actually served.")
+    else:
+        print(f"  [FAIL]  real completion: {result['message']}")
 
-    nemotron_served = "nemotron" in result.get("model", "").lower()
-    print(f"  [{'PASS' if nemotron_served else 'WARN'}]  the answering model is a Nemotron: {result.get('model')}")
+    print(f"  [{'PASS' if nemotron_served else 'FAIL'}]  the answering model is a Nemotron: {served or '(none)'}")
 
     print()
     if ok and hosted:
