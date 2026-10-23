@@ -94,7 +94,7 @@ export default function Home(){
       <div className="side-bottom"><span className="live-dot"/> 本机研究空间<p>上传数据与计算保留在本机。加载公开案例会访问 UCI；启用检索后，仅公开检索词发往 PubMed。</p><small>Track 02 · Explain why</small></div>
     </aside>
     <main>
-      <header><span>OPENRESEARCH / 研究工作台</span><span className="badge">规则与真实工具 · 大模型尚未接入</span></header>
+      <header><span>OPENRESEARCH / 研究工作台</span><a href="/agent">体验真实 Agent 循环 →</a><span className="badge">当前页面：固定分析流程</span></header>
       <section className="intro"><div><p className="eyebrow">先看证据，再谈结论</p><h1>{tab==='workspace'?'让每一个研究结论，都有据可查。':tab==='execution'?'看清分析正在做什么。':tab==='results'?'结果是什么，依据又是什么？':'保留完整、可复查的研究记录。'}</h1><p>{tab==='workspace'?'选一个公开案例，核对方案，查看实际计算与证据缺口。':'计算结果、来源和方法限制，放在一起检查。'}</p></div><div className="status-pill">{restoring?'恢复中':active?'● 分析中':result?'✓ 报告已就绪':'○ 准备开始'}</div></section>
       {error&&<div role="alert" className="alert error">{error}</div>}
       {pollPaused&&<div className="alert">状态查询已暂停，分析任务可能仍在运行。<button className="text-button" onClick={()=>{setPollPaused(false);setError('')}}>重新查询状态</button></div>}

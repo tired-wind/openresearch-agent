@@ -12,7 +12,7 @@ HEART_FIELDS = {
     'exang': ('运动诱发心绞痛', ['exercise-induced angina', 'angina']),
     'oldpeak': ('运动相对静息的 ST 段压低', ['ST depression', 'ST-segment depression']),
     'slope': ('运动峰值 ST 段斜率类别', ['ST segment', 'ST-segment']),
-    'ca': ('检查中着色的主要血管数', ['fluoroscopy', 'coronary vessels']),
+    'ca': ('透视检查中显影的主要血管数（0–3）；不是冠状动脉钙化评分', ['fluoroscopy', 'coronary vessels']),
     'thal': ('灌注检查结果类别', ['perfusion', 'thallium']),
     'disease_present': ('已记录的心脏病状态（0 无 / 1 有）', []),
 }
