@@ -46,8 +46,10 @@ def supervise(rid, example):
         # Allowlist environment: no model keys, tracing tokens or paid API access.
         env = {k: v for k, v in os.environ.items() if k in ('PATH', 'HOME', 'TMPDIR', 'LANG', 'LC_ALL', 'SYSTEMROOT')}
         env['OPENRESEARCH_DATA_DIR'] = str(storage.ROOT)
+        env['OPENRESEARCH_NO_DOTENV'] = '1'
         proc = subprocess.run([sys.executable, '-m', 'scripts.run_agent', '--example', example,
-                               '--run-id', rid, '--model', MODEL], cwd=PROJECT, env=env,
+                               '--run-id', rid, '--provider', 'ollama', '--model', MODEL,
+                               '--no-memory'], cwd=PROJECT, env=env,
                               timeout=450, capture_output=True)
         trace_path = folder / 'trace.json'
         trace = json.loads(trace_path.read_text()) if trace_path.exists() else []

@@ -7,6 +7,8 @@
 > 进度更新：2026 年 10 月 23 日（新加坡时间）。
 >
 > 现在有两个明确区分的入口：原工作台执行固定的数据分析流程；新增 `/agent` 使用 **LangGraph + Ollama + Qwen3.5 4B**，让真实模型选择工具、检索文献并提交解释草稿。**已接通单 Agent 工具循环，尚未实现完整科学语义核验、多 Agent 协作或参赛合规。**
+>
+> **交接必读**：[2026-10-23 开发日志](docs/dev-log-2026-10-23.md) — 三层接入现状、实测证据、复现步骤、已知问题与待办。
 
 ## 先看 Agent 如何工作
 
@@ -22,6 +24,22 @@
 [工程对照与架构](docs/agent-engineering.md)说明从 PilotDeck / OpenWorker 学到的具体设计；[真实运行记录及已发现错误](docs/agent-acceptance.md)说明这次 Demo 能证明什么、不能证明什么。旧版六阶段是固定流程，不再把它称作六个独立 Agent。
 
 ![真实 Agent 页面：框架、运行入口、保存的执行记录及开发复核问题](docs/images/agent-demo.png)
+
+## 团队交接：三层适配器与验证范围
+
+朋友 `znh3012107` 在 Windows 上提交了以下集成和实测日志；维护者在 Mac 上完成代码复核与离线回归。远端服务的连接结果尚未在 Mac 重现，不能据此宣称已满足全部比赛要求。三层适配器与自检脚本：
+
+| 层 | 技术 | 实现 | 自检 |
+|---|---|---|---|
+| DATA | **Zetaris** | `backend/zetaris.py`：直连 REST 执行只读 SQL，带 `X-Org-ID` / 每次新 `X-Request-ID`，写操作在发出前拒绝 | `python scripts/check_zetaris.py` |
+| BUILD | **Meterless H-MEM** | `backend/hmem.py`：八信号混合检索、强制 `source`、信任账本、跨会话记忆；接入研究循环 | `python scripts/check_hmem.py` |
+| POWER | **NVIDIA Nemotron**（经 Meterless Nightshift） | `backend/llm.py` + `NightshiftProvider`：OpenAI 兼容路由；Agent 要求固定实际模型，不接受静默替换 | `python scripts/check_power.py` |
+
+朋友开发日志记录的实测证据（尚未在 Mac 复现）：Zetaris `SELECT 1` 与 `SHOW LIGHTNING DATABASES` 通过；`meterless/auto` 实际路由到 `nvidia/nemotron-3.5-lightning-30b-a3b` 并完成推理；H-MEM 第二会话能召回第一会话写入的事实。三层的设计取舍与未实现项见 [Zetaris](docs/zetaris.md)、[H-MEM](docs/hmem.md)。
+
+真实 Agent 的模型调用失败会停止并保存失败状态；独立的固定分析工作台仍可使用。不会把固定流程伪装成模型任务成功。Zetaris 目前尚未成为工作台的数据来源。
+
+协作查看成果与 GitHub 操作见[两人协作指南](docs/github-collaboration.md)。
 
 ## 1. 项目要解决什么问题
 
@@ -45,8 +63,8 @@
 | LLM 与 Agent 推理 | 单 Agent 实验入口已接通 | LangGraph + 本机 Qwen 工具循环已实跑；多 Agent、任意问题规划与语义审核未完成 |
 | 研究工作台 | 已实现并测试 | 中文主流程、一键公开案例、字段释义、方案预览、可展开证据卡、报告；支持桌面及手机布局 |
 | 报告与导出 | 已实现并测试 | Markdown 报告、JSON 证据包，以及本地中间文件 |
-| Zetaris / Meterless | 接入受阻 | 尚未验证比赛提供的实际接口、凭据和运行环境，未实现真实集成 |
-| NVIDIA Nemotron | 尚未接入 | 已查阅公开资料；没有已验证的可用推理服务 |
+| Zetaris / Meterless | 适配器与交接日志已合入 | 朋友报告 Windows 实测；本机完成离线检查，尚未复现远端服务；Zetaris 未成为工作台的数据来源 |
+| NVIDIA Nemotron | CLI 适配器已实现 | 朋友报告经 Nightshift 实跑；默认网页仍用本机 Ollama，云端调用需显式选择及已有授权 |
 | 参赛交付 | 尚未完成 | 已建立 GitHub 公开协作仓库和任务清单；实际 Cursor 开发记录、演示视频、幻灯片及最终提交仍待完成 |
 
 **原工作台的方案仍由规则生成；新 Agent 入口独立运行。** 用户选择研究目的与数据设计；系统检查目标、样本和少量范围关键词，不支持的设计会被拦截，但不能理解任意科学意图。公开案例提供默认目标和检索词；一般上传仍需用户定义。六个执行阶段不代表六个独立的大模型 Agent。

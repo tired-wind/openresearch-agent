@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +17,7 @@ import httpx
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend import hmem
 from backend.analysis import analyze, overview, read_table
 from backend.catalog import CATALOG, identify
 from backend.literature import retrieve
@@ -93,6 +95,91 @@ class OllamaProvider:
                 'usage': {k: payload.get(k) for k in ('prompt_eval_count', 'eval_count', 'total_duration')}}
 
 
+class NightshiftProvider:
+    """Meterless Nightshift serving NVIDIA Nemotron over an OpenAI-compatible route.
+
+    Nightshift speaks the OpenAI tool-calling shape, while this runtime keeps an
+    Ollama-flavoured message list (dict arguments, ``tool_name`` on tool results).
+    The translation below is the only place those two shapes meet, so the graph
+    and the tool contract stay provider-agnostic.
+    """
+
+    def __init__(self, model: str | None = None):
+        self.model = model or os.environ.get('NEMOTRON_MODEL') or 'meterless/auto'
+        self.base = (os.environ.get('METERLESS_BASE_URL') or 'http://127.0.0.1:8088/v1').rstrip('/')
+        self.token = os.environ.get('METERLESS_RUNTIME_TOKEN', '')
+
+    def headers(self) -> dict:
+        if self.model == 'meterless/auto':
+            raise ValueError('Pin an exact discovered model ID before starting a Nightshift Agent.')
+        if not self.token:
+            raise ValueError('METERLESS_RUNTIME_TOKEN is missing; start Nightshift and copy its Runtime token.')
+        return {'Authorization': f'Bearer {self.token}', 'meterless-app': 'openresearch-agent',
+                'meterless-scope': 'user', 'Content-Type': 'application/json'}
+
+    def translate(self, messages: list[dict]) -> list[dict]:
+        """Ollama-shaped history -> OpenAI chat messages, with stable tool-call ids."""
+        out, pending, index = [], [], 0
+        for message in messages:
+            role = message.get('role')
+            if role in ('system', 'user'):
+                out.append({'role': role, 'content': message.get('content', '')})
+            elif role == 'assistant':
+                calls = message.get('tool_calls') or []
+                if not calls:
+                    out.append({'role': 'assistant', 'content': message.get('content') or ''})
+                    continue
+                translated = []
+                for call in calls:
+                    index += 1
+                    call_id = call.get('id') or f'call_{index}'
+                    function = call.get('function') or {}
+                    arguments = function.get('arguments')
+                    if not isinstance(arguments, str):
+                        arguments = json.dumps(arguments or {}, ensure_ascii=False)
+                    translated.append({'id': call_id, 'type': 'function',
+                                       'function': {'name': function.get('name', ''), 'arguments': arguments}})
+                    pending.append(call_id)
+                out.append({'role': 'assistant', 'content': message.get('content') or None,
+                            'tool_calls': translated})
+            elif role == 'tool':
+                call_id = message.get('tool_call_id') or (pending.pop(0) if pending else f'call_{index}')
+                out.append({'role': 'tool', 'tool_call_id': call_id, 'content': message.get('content', '')})
+        return out
+
+    def chat(self, messages, tools):
+        response = httpx.post(f'{self.base}/chat/completions', headers=self.headers(), json={
+            'model': self.model, 'messages': self.translate(messages), 'tools': tools,
+            'temperature': 0, 'max_tokens': 1000,
+        }, timeout=httpx.Timeout(120, connect=5))
+        response.raise_for_status()
+        body = response.json()
+        choice = (body.get('choices') or [{}])[0]
+        if choice.get('finish_reason') not in ('stop', 'tool_calls'):
+            raise ValueError('Nightshift response incomplete or blocked; no partial tool call executed.')
+        served = body.get('model')
+        if not isinstance(served, str) or not served:
+            raise ValueError('Nightshift did not identify the serving model.')
+        if served != self.model:
+            raise ValueError('Nightshift served a different model; pin a discovered model ID instead of auto routing.')
+        message = choice.get('message') or {}
+        calls = []
+        for call in message.get('tool_calls') or []:
+            function = call.get('function') or {}
+            raw = function.get('arguments')
+            if isinstance(raw, str) and raw.strip():
+                try:
+                    arguments = json.loads(raw)
+                except json.JSONDecodeError:
+                    # Surfaced as a rejected tool call by the strict validators below.
+                    arguments = {'__invalid_arguments__': raw[:200]}
+            else:
+                arguments = raw or {}
+            calls.append({'id': call.get('id'), 'function': {'name': function.get('name', ''), 'arguments': arguments}})
+        return {'message': {'role': 'assistant', 'content': message.get('content'), 'tool_calls': calls},
+                'served_model': served, 'usage': body.get('usage') or {}}
+
+
 class GraphState(TypedDict):
     messages: list[dict]
     turns: int
@@ -119,8 +206,9 @@ def load_public_dataset(example):
 
 class ResearchSession:
     def __init__(self, example: Literal['heart', 'breast'], folder: Path, provider: Provider,
-                 question: str | None = None):
+                 question: str | None = None, memory: 'hmem.MemoryStore | None' = None):
         self.example, self.folder, self.provider = example, folder, provider
+        self.memory = memory
         self.profile = CATALOG[example]
         self.question = question or self.profile['question']
         self.events: list[dict] = []
@@ -198,6 +286,12 @@ class ResearchSession:
                 'dataset_sha256': self.sha,
             }
             self.save('report.json', self.report)
+            if self.memory is not None:
+                # H-MEM mining: the next session can start from what this one proved.
+                memory = hmem.mine_report(self.memory, self.report, domain='research',
+                                          run_id=self.folder.name)
+                self.event('memory_written', memory_id=memory.id, layer=memory.layer,
+                           tags=memory.tags, source=memory.source)
             return {'status': 'draft_saved', 'artifact': 'report.json', 'semantic_review': 'not_verified'}
         raise ValueError('Unknown tool.')
 
@@ -214,7 +308,8 @@ class ResearchSession:
             calls = message.get('tool_calls') or []
             if not isinstance(calls, list) or len(calls) > 4:
                 raise ValueError('Invalid or excessive model tool calls.')
-            self.event('model_returned', turn=turn, calls=calls, usage=response.get('usage', {}))
+            self.event('model_returned', turn=turn, calls=calls, usage=response.get('usage', {}),
+                       served_model=response.get('served_model', self.provider.model))
             messages = state['messages'] + [message]
             # One bounded correction when the model responds in prose only; all
             # corrections still consume the same ten-turn budget.
@@ -253,13 +348,28 @@ class ResearchSession:
         builder.add_conditional_edges('tools', lambda s: END if s['done'] else 'model')
         return builder.compile()
 
+    def recalled(self) -> str:
+        """H-MEM retrieval for this question; returns the reinjection block or ''."""
+        if self.memory is None:
+            return ''
+        result = hmem.retrieve(self.memory, self.question)
+        if result['memories']:
+            self.event('memory_retrieved', strategy=result['strategy'], threshold=result['threshold'],
+                       query_domain=result['queryDomain'], considered=result['considered'],
+                       memories=[{'id': m['id'], 'score': m['score'], 'layer': m['layer'],
+                                  'reason': m['retrievalReason']} for m in result['memories']])
+        return result['context']
+
     def run(self):
         import importlib.metadata
-        self.event('session_started', framework='langgraph', provider='ollama', model=self.provider.model,
-                   question=self.question, example=self.example, dataset_sha256=self.sha,
+        context = self.recalled()
+        self.event('session_started', framework='langgraph', provider=type(self.provider).__name__,
+                   model=self.provider.model, question=self.question, example=self.example,
+                   dataset_sha256=self.sha, memory_enabled=self.memory is not None,
                    framework_version=importlib.metadata.version('langgraph'),
                    runtime_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest())
-        state = {'messages': [{'role': 'system', 'content': SYSTEM},
+        system = SYSTEM if not context else f'{SYSTEM}\n\n{context}'
+        state = {'messages': [{'role': 'system', 'content': system},
                               {'role': 'user', 'content': self.question}],
                  'turns': 0, 'pending': [], 'done': False, 'reason': ''}
         try:

@@ -103,7 +103,9 @@ def fetch(dataset: str) -> dict:
         raise ValueError('Unexpected source row count.')
     if not archive.exists():
         archive.write_bytes(raw)
-    output = df.to_csv(index=False).encode()
+    # lineterminator is pinned: pandas defaults to os.linesep, so on Windows this
+    # file would gain CRLF and no longer match the checksum recorded in catalog.py.
+    output = df.to_csv(index=False, lineterminator='\n').encode('utf-8')
     (folder / 'prepared.csv').write_bytes(output)
     (folder / source['dictionary']).write_bytes(dictionary)
     manifest = {**source, 'license': 'CC BY 4.0', 'license_url': 'https://creativecommons.org/licenses/by/4.0/',
