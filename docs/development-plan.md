@@ -65,3 +65,8 @@ Real CLI and browser runs now exist. The first exposed a scientific field-meanin
 Next priority: structured claim/source assessment, semantic field and population matching, and a reproducible evaluation set with expected refusal/uncertainty outcomes. Full #2 and #3 remain open. Sponsors and competition compliance are still blocked separately; the local Agent is not a sponsor integration.
 
 Validation completed for this increment: backend control/API/analysis regressions passed (53 tests); frontend production build passed; default browser checks passed (3, with 2 live checks deliberately skipped); the separately enabled real Agent browser flow passed. The latter observed a real model correcting a rejected submission. Scientific interpretation defects remain documented and open.
+
+
+## Two-person handoff review — 2026-10-23
+
+Reviewed znh3012107's pushed znh/dev branch and Windows development log; no PR existed at inspection. Preserved the branch and assembled integrate/znh-sponsor-adapters from its commits. Added explicit CLI provider/env-file/memory selection, web-worker dotenv isolation, model identity/truncation rejection, conservative SQL checks, and a beginner GitHub collaboration guide. Contributor Windows service runs remain reported evidence, not maintainer Mac reproductions or full competition compliance. No cloud inference, Docker install or model download was performed in this review. Dashboard sponsor configuration and actual Zetaris analysis input remain open.

@@ -110,6 +110,8 @@ class NightshiftProvider:
         self.token = os.environ.get('METERLESS_RUNTIME_TOKEN', '')
 
     def headers(self) -> dict:
+        if self.model == 'meterless/auto':
+            raise ValueError('Pin an exact discovered model ID before starting a Nightshift Agent.')
         if not self.token:
             raise ValueError('METERLESS_RUNTIME_TOKEN is missing; start Nightshift and copy its Runtime token.')
         return {'Authorization': f'Bearer {self.token}', 'meterless-app': 'openresearch-agent',
@@ -152,7 +154,15 @@ class NightshiftProvider:
         }, timeout=httpx.Timeout(120, connect=5))
         response.raise_for_status()
         body = response.json()
-        message = ((body.get('choices') or [{}])[0].get('message')) or {}
+        choice = (body.get('choices') or [{}])[0]
+        if choice.get('finish_reason') not in ('stop', 'tool_calls'):
+            raise ValueError('Nightshift response incomplete or blocked; no partial tool call executed.')
+        served = body.get('model')
+        if not isinstance(served, str) or not served:
+            raise ValueError('Nightshift did not identify the serving model.')
+        if served != self.model:
+            raise ValueError('Nightshift served a different model; pin a discovered model ID instead of auto routing.')
+        message = choice.get('message') or {}
         calls = []
         for call in message.get('tool_calls') or []:
             function = call.get('function') or {}
@@ -165,9 +175,9 @@ class NightshiftProvider:
                     arguments = {'__invalid_arguments__': raw[:200]}
             else:
                 arguments = raw or {}
-            calls.append({'function': {'name': function.get('name', ''), 'arguments': arguments}})
+            calls.append({'id': call.get('id'), 'function': {'name': function.get('name', ''), 'arguments': arguments}})
         return {'message': {'role': 'assistant', 'content': message.get('content'), 'tool_calls': calls},
-                'usage': body.get('usage') or {}}
+                'served_model': served, 'usage': body.get('usage') or {}}
 
 
 class GraphState(TypedDict):
@@ -298,7 +308,8 @@ class ResearchSession:
             calls = message.get('tool_calls') or []
             if not isinstance(calls, list) or len(calls) > 4:
                 raise ValueError('Invalid or excessive model tool calls.')
-            self.event('model_returned', turn=turn, calls=calls, usage=response.get('usage', {}))
+            self.event('model_returned', turn=turn, calls=calls, usage=response.get('usage', {}),
+                       served_model=response.get('served_model', self.provider.model))
             messages = state['messages'] + [message]
             # One bounded correction when the model responds in prose only; all
             # corrections still consume the same ten-turn budget.

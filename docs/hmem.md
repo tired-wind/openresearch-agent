@@ -98,3 +98,14 @@ against the same `--memory-dir`, which is the cross-session evidence.
   hidden one.
 - No dreaming, sleep or conflict resolution (see above).
 - Short-term memories are intentionally lost on process exit.
+
+
+## Current opt-in entry point after integration review
+
+Memory requires explicit `--memory-dir data/hmem`. Default CLI and web tasks do not enable it. Example on a machine with an already activated Nightshift service and approved model access:
+
+```bash
+uv run python -m scripts.run_agent --example heart --provider nightshift --env-file .env --model <exact-discovered-Nemotron-ID> --memory-dir data/hmem
+```
+
+Replace the placeholder, without angle brackets, with the actual discovered model ID. The runtime rejects a response served by a different model. `.env` is loaded only with `--env-file`; web workers forbid that option. Offline check_hmem.py demonstrates mechanics using illustrative inputs and a placeholder PMID, not retrieved scientific evidence or live sponsor/model execution.

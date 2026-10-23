@@ -7,6 +7,7 @@ leave this module, because an agent must not mutate the governed dataset.
 """
 from __future__ import annotations
 import os
+import re
 from typing import Any
 from uuid import uuid4
 import httpx
@@ -27,6 +28,16 @@ def configured() -> bool:
 
 
 def is_read_only(sql: str) -> bool:
+    # Conservative guard, not a substitute for a read-only Zetaris account.
+    # Reject multiple statements/comments and any mutating token, including
+    # writes behind WITH/EXPLAIN. Some harmless queries are intentionally refused.
+    if not sql or any(marker in sql for marker in (';', '--', '/*', '*/', '\x00')):
+        return False
+    tokens = set(re.findall(r'[a-z_]+', sql.lower()))
+    if tokens & {'insert', 'update', 'delete', 'drop', 'create', 'alter', 'truncate',
+                 'merge', 'replace', 'grant', 'revoke', 'copy', 'into', 'call',
+                 'execute', 'exec', 'load', 'set', 'use', 'cache', 'uncache', 'refresh', 'analyze'}:
+        return False
     stripped = sql.strip().lstrip('(').strip()
     first = stripped.split(None, 1)[0].lower() if stripped else ''
     return first in READ_ONLY
@@ -41,6 +52,8 @@ def run_sql(sql: str, limit: int = MAX_ROWS, *, client: httpx.Client | None = No
     rest, org, key = settings()
     query_id = str(uuid4())
     base = {'sql': sql, 'query_id': query_id, 'headers': [], 'rows': [], 'total': 0, 'time_used_ms': None}
+    if type(limit) is not int or not 1 <= limit <= MAX_ROWS:
+        return {**base, 'status': 'rejected', 'message': 'Row limit must be an integer between 1 and 1000.'}
     if not (rest and org and key):
         return {**base, 'status': 'disabled', 'message': 'Zetaris is not configured; set ZETARIS_REST_URL, ZETARIS_ORG_ID and ZETARIS_API_KEY.'}
     if not is_read_only(sql):

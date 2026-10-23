@@ -63,3 +63,8 @@ python -m pytest tests/test_zetaris.py -q
 - Files on this laptop are not visible to Zetaris; a file must sit in storage the
   platform can reach (for example S3) before it can be registered.
 - No write path, by design.
+
+
+## Integration review boundary
+
+The client guard conservatively refuses semicolons, comments, mutating keywords and invalid row limits, including writes hidden behind WITH or EXPLAIN. It is not a SQL authorization engine and cannot guarantee side-effect-free functions. Use a server account with actual read-only permissions. The adapter is not exposed as an Agent tool and is not yet the dashboard data source. Live connectivity in the handoff log was reported on the contributor Windows machine, not independently repeated on the maintainer Mac.

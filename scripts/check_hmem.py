@@ -25,7 +25,7 @@ def rule(title: str) -> None:
 
 def main() -> int:
     folder = Path(tempfile.mkdtemp(prefix="hmem-demo-"))
-    print(f"H-MEM check (store: {folder})")
+    print(f"H-MEM offline mechanics check (illustrative metrics and placeholder PMID; not a scientific/live-model run). Store: {folder}")
 
     # --- Session 1: a finished investigation is mined into long-term memory ---
     rule("第一会话：完成一次研究调查，把可复用事实写入记忆")
