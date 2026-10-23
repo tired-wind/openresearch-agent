@@ -54,3 +54,14 @@ Implemented typed rule-based plan preview, unsupported-design/purpose gates, dat
 Verified: 46 backend tests, production frontend build, 3 local browser tests (including live UCI), and a live PubMed/API run with 4 retrieved publications and 15 verified snippet locations. See product-acceptance.md. Conventional CI intentionally excludes live UCI/PubMed reliance; its 2 browser checks are distinct from the live tests.
 
 Next: verify sponsor/runtime contracts (#1), then implement constrained semantic proposals and population/exposure/outcome comparison. Preserve the current working examples and explicit uncertainty while doing so. Do not close the full planning/evidence issues merely because the deterministic substrate is ready.
+
+
+## Agent runtime correction — 2026-10-23
+
+The user correctly identified that stage labels and test counts did not demonstrate an Agent. Studied PilotDeck AgentLoop and OpenWorker Engine/ProviderClient source, then implemented a separate LangGraph + native Ollama runtime with five allowlisted research tools, event records, bounded model/tool feedback, public-data checks and an interactive `/agent` page. Kept the existing deterministic analysis as the reliable computation layer.
+
+Real CLI and browser runs now exist. The first exposed a scientific field-meaning error; preserved it with an explicit engineering review. The second demonstrated search refinement after an empty result and correction after rejected feature names. Model prose remains an unverified draft. See agent-acceptance.md for actual calls and limitations, not just test totals.
+
+Next priority: structured claim/source assessment, semantic field and population matching, and a reproducible evaluation set with expected refusal/uncertainty outcomes. Full #2 and #3 remain open. Sponsors and competition compliance are still blocked separately; the local Agent is not a sponsor integration.
+
+Validation completed for this increment: backend control/API/analysis regressions passed (53 tests); frontend production build passed; default browser checks passed (3, with 2 live checks deliberately skipped); the separately enabled real Agent browser flow passed. The latter observed a real model correcting a rejected submission. Scientific interpretation defects remain documented and open.

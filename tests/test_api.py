@@ -60,3 +60,25 @@ def test_failed_public_download_never_returns_demo_data(client,monkeypatch):
     monkeypatch.setattr(module,'fetch_public_data',fail)
     r=client.post('/api/examples/heart')
     assert r.status_code==503 and '未使用替代数据' in r.json()['detail']
+
+def test_agent_unavailable_and_unknown_scope_fail_closed(client,monkeypatch):
+    from backend import agent_api
+    monkeypatch.setattr(agent_api,'capabilities',lambda:{'available':False})
+    assert client.post('/api/agent/runs',json={'example':'heart'}).status_code==503
+    assert client.post('/api/agent/runs',json={'example':'private'}).status_code==422
+    assert client.post('/api/agent/runs',json={'example':'heart','provider':'paid'}).status_code==422
+    assert client.post('/api/agent/runs',json={'example':'heart'},headers={'Origin':'https://evil.example'}).status_code==403
+    assert client.get('/api/agent/runs').json()==[]
+
+def test_interrupted_agent_and_saved_review_remain_visible(client):
+    import json
+    from uuid import uuid4
+    from backend.agent_api import recover_interrupted,write_status
+    rid=str(uuid4());folder=storage.ROOT/'agent-runs'/rid;folder.mkdir(parents=True)
+    write_status(folder,'running')
+    (folder/'engineering-review.json').write_text(json.dumps({'issues':['not semantically verified']}))
+    recover_interrupted()
+    r=client.get('/api/agent/runs/'+rid).json()
+    assert r['status']=='interrupted'
+    assert r['report'] is None
+    assert r['engineering_review']['issues']==['not semantically verified']
