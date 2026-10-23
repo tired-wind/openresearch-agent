@@ -18,7 +18,50 @@ router = APIRouter(prefix='/api/agent')
 pool = ThreadPoolExecutor(max_workers=1)
 slot = threading.BoundedSemaphore(1)
 PROJECT = Path(__file__).resolve().parents[1]
-MODEL = 'qwen3.5:4b'
+DEFAULT_OLLAMA_MODEL = 'qwen3.5:4b'
+
+
+def agent_config():
+    """Provider/model/memory come from the server environment, never from a request.
+
+    The web worker keeps #10's strict allowlist: only loopback credentials are
+    forwarded for Nightshift, and the NVIDIA key never leaves Nightshift itself.
+    """
+    provider = (os.environ.get('OPENRESEARCH_AGENT_PROVIDER') or 'ollama').strip().lower()
+    if provider not in ('ollama', 'nightshift'):
+        provider = 'ollama'
+    if provider == 'nightshift':
+        model = (os.environ.get('OPENRESEARCH_AGENT_MODEL')
+                 or os.environ.get('NEMOTRON_MODEL') or '').strip()
+    else:
+        model = (os.environ.get('OPENRESEARCH_AGENT_MODEL') or DEFAULT_OLLAMA_MODEL).strip()
+    memory = os.environ.get('OPENRESEARCH_AGENT_MEMORY') == '1'
+    return provider, model, memory
+
+
+def _nightshift_available(model):
+    token = os.environ.get('METERLESS_RUNTIME_TOKEN', '')
+    if not token or not model or model == 'meterless/auto':
+        return False
+    base = (os.environ.get('METERLESS_BASE_URL') or 'http://127.0.0.1:8088/v1').rstrip('/')
+    try:
+        response = httpx.get(f'{base}/models', timeout=4,
+                             headers={'Authorization': f'Bearer {token}',
+                                      'meterless-app': 'openresearch-agent',
+                                      'meterless-scope': 'user'})
+        response.raise_for_status()
+        return model in {m.get('id') for m in response.json().get('data', [])}
+    except (httpx.HTTPError, ValueError, KeyError):
+        return False
+
+
+def _ollama_available(model):
+    try:
+        response = httpx.get('http://127.0.0.1:11434/api/tags', timeout=2)
+        response.raise_for_status()
+        return model in [m['name'] for m in response.json().get('models', [])]
+    except (httpx.HTTPError, ValueError, KeyError):
+        return False
 
 
 class AgentRequest(BaseModel):
@@ -29,13 +72,13 @@ class AgentRequest(BaseModel):
 def write_status(folder, status, **extra):
     path = folder / 'status.json'
     tmp = folder / 'status.json.tmp'
-    tmp.write_text(json.dumps({'status': status, 'updated_at': storage.now(), **extra}))
+    tmp.write_text(json.dumps({'status': status, 'updated_at': storage.now(), **extra}), encoding='utf-8')
     tmp.replace(path)
 
 
 def recover_interrupted():
     for path in (storage.ROOT / 'agent-runs').glob('*/status.json'):
-        if json.loads(path.read_text()).get('status') in ('queued', 'running'):
+        if json.loads(path.read_text(encoding='utf-8')).get('status') in ('queued', 'running'):
             write_status(path.parent, 'interrupted', error='服务已重启，请重新运行。')
 
 
@@ -43,44 +86,61 @@ def supervise(rid, example):
     folder = storage.ROOT / 'agent-runs' / rid
     try:
         write_status(folder, 'running')
+        provider, model, memory = agent_config()
         # Allowlist environment: no model keys, tracing tokens or paid API access.
         env = {k: v for k, v in os.environ.items() if k in ('PATH', 'HOME', 'TMPDIR', 'LANG', 'LC_ALL', 'SYSTEMROOT')}
         env['OPENRESEARCH_DATA_DIR'] = str(storage.ROOT)
         env['OPENRESEARCH_NO_DOTENV'] = '1'
-        proc = subprocess.run([sys.executable, '-m', 'scripts.run_agent', '--example', example,
-                               '--run-id', rid, '--provider', 'ollama', '--model', MODEL,
-                               '--no-memory'], cwd=PROJECT, env=env,
-                              timeout=450, capture_output=True)
+        env['PYTHONUTF8'] = '1'  # parent and child must agree on file encoding
+        if provider == 'nightshift':
+            # Loopback-only credentials. The NVIDIA key stays inside Nightshift.
+            for key in ('METERLESS_BASE_URL', 'METERLESS_RUNTIME_TOKEN',
+                        'OPENRESEARCH_ALLOW_NEMOTRON_SUBSTITUTION'):
+                if os.environ.get(key):
+                    env[key] = os.environ[key]
+        argv = [sys.executable, '-m', 'scripts.run_agent', '--example', example,
+                '--run-id', rid, '--provider', provider, '--model', model]
+        argv += ['--memory-dir', str(storage.ROOT / 'hmem')] if memory else ['--no-memory']
+        proc = subprocess.run(argv, cwd=PROJECT, env=env, timeout=450, capture_output=True)
         trace_path = folder / 'trace.json'
-        trace = json.loads(trace_path.read_text()) if trace_path.exists() else []
+        trace = json.loads(trace_path.read_text(encoding='utf-8')) if trace_path.exists() else []
         last = trace[-1] if trace else {}
         status = last.get('status', 'failed') if last.get('kind') == 'session_ended' else 'failed'
         if proc.returncode and status == 'completed_draft': status = 'failed'
-        write_status(folder, status)
+        if status == 'failed':
+            # Surface the child's own words; a generic message hid real refusals.
+            detail = (last.get('detail') or '').strip()
+            stderr = (proc.stderr or b'').decode('utf-8', 'replace').strip().splitlines()
+            reason = detail or (stderr[-1] if stderr else '')
+            write_status(folder, status, error=(reason[:400] or 'Agent 进程未生成完整草稿。'))
+        else:
+            write_status(folder, status)
     except subprocess.TimeoutExpired:
         write_status(folder, 'timeout', error='达到 450 秒进程时限，已停止。')
     except Exception:
-        write_status(folder, 'failed', error='本地 Agent 启动失败；请检查数据和 Ollama 服务。')
+        provider, model, _memory = agent_config()
+        write_status(folder, 'failed', error=f'本地 Agent 启动失败；请检查数据与 {provider} 服务（{model}）。')
     finally:
         slot.release()
 
 
 @router.get('/capabilities')
 def capabilities():
-    try:
-        response = httpx.get('http://127.0.0.1:11434/api/tags', timeout=2)
-        response.raise_for_status()
-        available = MODEL in [m['name'] for m in response.json().get('models', [])]
-    except (httpx.HTTPError, ValueError, KeyError):
-        available = False
-    return {'framework': 'LangGraph', 'provider': 'Ollama', 'model': MODEL,
-            'available': available, 'scope': 'public_examples_only', 'semantic_review': False}
+    provider, model, memory = agent_config()
+    available = _nightshift_available(model) if provider == 'nightshift' else _ollama_available(model)
+    return {'framework': 'LangGraph', 'provider': provider, 'model': model,
+            'available': available, 'memory_enabled': memory,
+            'scope': 'public_examples_only', 'semantic_review': False}
 
 
 @router.post('/runs', status_code=202)
 def start(request: AgentRequest):
-    if not capabilities()['available']:
-        raise HTTPException(503, '本机 Ollama 或 qwen3.5:4b 不可用；没有自动下载或替代模型。')
+    caps = capabilities()
+    if not caps['available']:
+        provider = caps.get('provider') or agent_config()[0]
+        model = caps.get('model') or agent_config()[1]
+        raise HTTPException(503, f"本机 {provider} 模型 {model or '(未配置)'} 不可用；"
+                                 f"没有自动下载或替代模型。")
     if not (PROJECT / 'data/public' / f'uci-{request.example}' / 'prepared.csv').exists():
         raise HTTPException(409, '请先在原工作台加载对应公开案例，完成下载与校验。')
     if not slot.acquire(blocking=False):
@@ -103,7 +163,7 @@ def get_run(rid: UUID):
     if not folder.exists(): raise HTTPException(404, 'Agent run not found.')
     def read(name, default):
         path = folder / name
-        return json.loads(path.read_text()) if path.exists() else default
+        return json.loads(path.read_text(encoding='utf-8')) if path.exists() else default
     trace = read('trace.json', [])
     ended = trace[-1] if trace and trace[-1].get('kind') == 'session_ended' else {}
     state = read('status.json', {'status': ended.get('status', 'running')})

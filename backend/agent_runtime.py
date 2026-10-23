@@ -161,7 +161,17 @@ class NightshiftProvider:
         if not isinstance(served, str) or not served:
             raise ValueError('Nightshift did not identify the serving model.')
         if served != self.model:
-            raise ValueError('Nightshift served a different model; pin a discovered model ID instead of auto routing.')
+            # Nightshift's active lane rotates between Nemotron models on its own
+            # schedule, so exact equality fails at random even with a pinned id.
+            # The NVIDIA award requires Nemotron to serve, not one specific id, so a
+            # still-Nemotron substitution is allowed only when explicitly opted in.
+            # Every turn records served_model, so the report can cite what actually ran.
+            substituted_ok = (os.environ.get('OPENRESEARCH_ALLOW_NEMOTRON_SUBSTITUTION') == '1'
+                              and 'nemotron' in served.lower())
+            if not substituted_ok:
+                raise ValueError('Nightshift served a different model; pin a discovered model ID '
+                                 'instead of auto routing (or set '
+                                 'OPENRESEARCH_ALLOW_NEMOTRON_SUBSTITUTION=1 to accept another Nemotron).')
         message = choice.get('message') or {}
         calls = []
         for call in message.get('tool_calls') or []:
@@ -226,7 +236,10 @@ class ResearchSession:
     def save(self, name, value):
         path = self.folder / name
         temp = path.with_suffix(path.suffix + '.tmp')
-        temp.write_text(json.dumps(clean(value), ensure_ascii=False, indent=2, allow_nan=False))
+        # Encoding is pinned: without it the file is written in the process locale,
+        # and a parent running in UTF-8 mode then fails to read what a child wrote.
+        temp.write_text(json.dumps(clean(value), ensure_ascii=False, indent=2, allow_nan=False),
+                        encoding='utf-8')
         temp.replace(path)
 
     def event(self, kind, **details):
@@ -377,5 +390,8 @@ class ResearchSession:
             self.event('session_ended', status=final['reason'], turns=final['turns'])
             return final['reason']
         except Exception as exc:
-            self.event('session_ended', status='failed', error=type(exc).__name__)
+            # The message matters: a bare class name made a real provider refusal
+            # indistinguishable from a missing model in the saved trace.
+            self.event('session_ended', status='failed', error=type(exc).__name__,
+                       detail=str(exc)[:400])
             raise
