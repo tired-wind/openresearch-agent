@@ -1,3 +1,5 @@
+> **2026-10-23 update:** A separate experimental `/agent` page now runs a real **LangGraph + Ollama / Qwen3.5 4B** tool loop over two verified public examples. The default workspace below remains deterministic. The local model chooses searches and tools; free-text interpretations remain unverified drafts. This is one agent, not a multi-agent scientific review system. See [engineering](docs/agent-engineering.md) and [observed demo](docs/agent-acceptance.md).
+
 # OpenResearch Agent
 
 [中文 README](README.md) · [GitHub repository](https://github.com/tired-wind/openresearch-agent)
@@ -16,7 +18,7 @@ A research workspace for analysts who need to connect a tabular predictive analy
 - SQLite execution state; immutable-by-convention run artifacts; Markdown report and JSON evidence export.
 - Responsive Next.js dashboard, real backend subprocess execution, explicit failures and timeouts.
 
-The natural-language question provides report context; it does not yet drive LLM planning or automatically select the target. The user explicitly selects target, task and literature query. Planner/critic are deterministic components. `backend/providers.py` defines an extension contract only; no live LLM adapter is implemented.
+The natural-language question provides report context; it does not yet drive LLM planning or automatically select the target. The user explicitly selects target, task and literature query. Planner/critic are deterministic components. `backend/providers.py` defines an extension contract only; the separate `backend/agent_runtime.py` now implements a live local Ollama adapter.
 
 ## Quick start
 
@@ -50,7 +52,7 @@ Next.js/TypeScript → FastAPI/Pydantic → one bounded Python worker → pandas
 
 ## Sponsor status and rules
 
-**Not yet submission-compliant.** Verified rules require both Zetaris and Meterless integrations and Cursor development, plus GitHub source, a 1–4 minute video and slides. NVIDIA integration is encouraged where useful. No sponsor runtime or LLM integration is claimed. User reports Resources login, but current tools cannot read that authenticated session. Meterless H-MEM's public reference is explicitly a deterministic prototype with mock hash embeddings; it has not been presented as real inference or integrated here.
+**Not yet submission-compliant.** Verified rules require both Zetaris and Meterless integrations and Cursor development, plus GitHub source, a 1–4 minute video and slides. NVIDIA integration is encouraged where useful. No sponsor runtime integration is claimed; local Ollama inference is demonstrated separately. User reports Resources login, but current tools cannot read that authenticated session. Meterless H-MEM's public reference is explicitly a deterministic prototype with mock hash embeddings; it has not been presented as real inference or integrated here.
 
 See [resource audit](docs/resource-audit.md), [rules compliance](docs/rules-compliance.md), [environment audit](docs/environment-audit.md), [delivery plan](docs/development-plan.md) and [submission checklist](docs/submission-checklist.md).
 

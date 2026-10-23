@@ -53,4 +53,9 @@ The Chinese UI requires preview before run, invalidates previews when input chan
 
 ## Extension boundaries
 
-Provider protocol is declared but disabled. A verified provider could propose a typed plan or candidate source assessments; deterministic tools and evidence validation must remain authoritative. Sponsor adapters are pending tenant contracts/access. Zetaris should supply a read-only selected dataset with query provenance; Meterless could manage trusted research memory. A prototype hash embedder must never be described as model inference. No LangGraph dependency until branches, retries or human review justify it.
+The original planner provider protocol remains unused. A separate experimental runtime now uses LangGraph and a live Ollama adapter; see [Agent engineering](agent-engineering.md). A verified provider could propose a typed plan or candidate source assessments; deterministic tools and evidence validation must remain authoritative. Sponsor adapters are pending tenant contracts/access. Zetaris should supply a read-only selected dataset with query provenance; Meterless could manage trusted research memory. A prototype hash embedder must never be described as model inference. LangGraph is now used for the experimental model/tool cycle, while the default analysis worker remains sequential.
+
+
+## Experimental model-directed entry point — 2026-10-23
+
+`/agent` → `/api/agent/runs` → bounded local subprocess → `ResearchSession.graph()` (`model` ↔ `tools`). See [Agent engineering](agent-engineering.md) for the tool contract, state, budgets and observed failure cases. No checkpoint-based resume is claimed; event/artifact persistence supports inspection only. The final tool checks names and source identity, not all prose claims. Public examples only, fixed target and predefined statistical method, one model, no arbitrary Python execution.

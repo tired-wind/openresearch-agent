@@ -17,6 +17,7 @@ from backend.planning import ResearchRequest, build_plan
 from scripts.fetch_public_data import fetch as fetch_public_data
 from backend import storage
 from backend.analysis import read_table, overview, MAX_BYTES, InputError
+from backend.agent_api import router as agent_router, recover_interrupted
 
 POOL=ThreadPoolExecutor(max_workers=1)
 SLOTS=threading.BoundedSemaphore(4)
@@ -24,6 +25,7 @@ PROJECT=Path(__file__).resolve().parents[1]
 
 @asynccontextmanager
 async def lifespan(app):
+    recover_interrupted()
     # A process restart must not leave misleading 'running' jobs forever.
     with storage.connect() as con:
         for rid,payload in con.execute('SELECT id,payload FROM runs').fetchall():
@@ -34,6 +36,7 @@ async def lifespan(app):
     yield
 
 app=FastAPI(title='OpenResearch Agent',version='0.1.0',lifespan=lifespan)
+app.include_router(agent_router)
 app.add_middleware(TrustedHostMiddleware,allowed_hosts=['localhost','127.0.0.1','testserver'])
 
 @app.middleware('http')
@@ -70,7 +73,8 @@ def register(raw,suffix,kind):
 @app.get('/api/health')
 def health():
     with storage.connect() as con: con.execute('SELECT 1')
-    return {'status':'ok','mode':'deterministic','sponsors':'not integrated','llm':'disabled'}
+    return {'status':'ok','mode':'deterministic_default','sponsors':'not integrated',
+            'llm':'local_agent_opt_in','agent_capabilities':'/api/agent/capabilities'}
 
 @app.post('/api/datasets')
 async def upload(file:UploadFile=File(...)):
