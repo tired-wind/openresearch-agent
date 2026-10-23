@@ -4,8 +4,26 @@ import json
 import os
 from pathlib import Path
 from uuid import UUID, uuid4
-from backend.agent_runtime import NightshiftProvider, OllamaProvider, ResearchSession
-from backend import hmem, storage
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def load_env(path: Path = ROOT / '.env') -> None:
+    """scripts/start.sh exports .env; a CLI run must load it for itself."""
+    if not path.exists():
+        return
+    for line in path.read_text(encoding='utf-8').splitlines():
+        line = line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        key, _, value = line.partition('=')
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+load_env()
+
+from backend.agent_runtime import NightshiftProvider, OllamaProvider, ResearchSession  # noqa: E402
+from backend import hmem, storage  # noqa: E402
 
 def main():
     parser = argparse.ArgumentParser()
