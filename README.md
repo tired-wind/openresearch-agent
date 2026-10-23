@@ -23,6 +23,20 @@
 
 ![真实 Agent 页面：框架、运行入口、保存的执行记录及开发复核问题](docs/images/agent-demo.png)
 
+## 赛道三层：已接入并实测
+
+比赛要求 DATA / BUILD / POWER 三层同时落地，且不是"提到"而是"跑通一个真实功能"。三层的接入代码与自检脚本：
+
+| 层 | 技术 | 实现 | 自检 |
+|---|---|---|---|
+| DATA | **Zetaris** | `backend/zetaris.py`：直连 REST 执行只读 SQL，带 `X-Org-ID` / 每次新 `X-Request-ID`，写操作在发出前拒绝 | `python scripts/check_zetaris.py` |
+| BUILD | **Meterless H-MEM** | `backend/hmem.py`：八信号混合检索、强制 `source`、信任账本、跨会话记忆；接入研究循环 | `python scripts/check_hmem.py` |
+| POWER | **NVIDIA Nemotron**（经 Meterless Nightshift） | `backend/llm.py` + `NightshiftProvider`：OpenAI 兼容路由，记录实际服务的模型 | `python scripts/check_power.py` |
+
+实测证据：Zetaris `SELECT 1` 与 `SHOW LIGHTNING DATABASES` 通过；`meterless/auto` 实际路由到 `nvidia/nemotron-3.5-lightning-30b-a3b` 并完成推理；H-MEM 第二会话能召回第一会话写入的事实。三层的设计取舍与未实现项见 [Zetaris](docs/zetaris.md)、[H-MEM](docs/hmem.md)。
+
+模型调用失败、Zetaris 不可达、记忆为空时，系统仍走原有确定性路径并保留不确定性说明，不会伪造结果。
+
 ## 1. 项目要解决什么问题
 
 目标用户是需要分析结构化数据，并把模型结果与科学文献结合起来的研究人员和数据分析人员。
